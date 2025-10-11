@@ -18,14 +18,13 @@
     label{ display:flex; flex-direction:column; gap:6px; font-weight:600; }
     select, input, button, .chip{ font:inherit; }
     select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); }
-    .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; }
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+    .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; user-select:none; }
     .chip.active{ background:#d1e9ff; }
     .slots{ display:flex; flex-direction:column; gap:12px; }
-    .slot{ display:grid; grid-template-columns: 160px 1fr 160px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
+    .slot{ display:grid; grid-template-columns: 200px 1fr 220px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
     .time{ background:#f5f5f8; border:1px solid #e6ebf1; border-radius:12px; padding:8px; text-align:center; font-weight:600; }
     .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; }
-    .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
-    .btn:disabled{ opacity:.5; cursor:not-allowed; }
     .panel{ display:flex; flex-direction:column; gap:8px; }
     .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
     .bar{ height:100%; background:var(--good); width:0%; }
@@ -34,23 +33,31 @@
     .error{ color:var(--danger); font-weight:600; }
     .help{ font-size:12px; color:var(--muted); }
     .req::after{ content:" *"; color:var(--danger); font-weight:700; }
+    .qty{ display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+    .qty button{ border:1px solid #e6ebf1; background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer; }
+    .confirm{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
+    .confirm:disabled{ opacity:.5; cursor:not-allowed; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-      <div class="muted">Filter by year/stall • Pick positions • See remaining places live</div>
+      <div class="muted">Filter by stall/time • Pick positions • See remaining places live</div>
     </div>
 
     <div class="card" style="margin-top:12px">
-      <div class="filters">
-        <label>Year group
-          <select id="yearSelect"></select>
+      <div class="filters" id="filters">
+        <div style="flex:1 1 420px">
+          <div style="font-weight:600; margin-bottom:6px">Stalls</div>
+          <div class="chips" id="stallChips"></div>
+          <div class="help">Tap to toggle; you can select multiple stalls.</div>
+        </div>
+        <label style="width:260px">Time
+          <select id="timeSelect"></select>
         </label>
-        <div id="stallChips" style="display:flex; gap:8px; flex-wrap:wrap"></div>
         <label style="flex-direction:row; align-items:center; gap:10px; font-weight:400; margin-left:auto">
-          <input type="checkbox" id="openAll"/> <span>Show booked as well</span>
+          <input type="checkbox" id="openAll"/> <span>Show booked groups too</span>
         </label>
       </div>
     </div>
@@ -81,7 +88,7 @@
         <div class="card">
           <strong>Your selected positions</strong>
           <div id="selected"></div>
-          <button id="confirm" class="btn" style="margin-top:8px" disabled>Confirm sign-up</button>
+          <button id="confirm" class="confirm" style="margin-top:8px" disabled>Confirm sign-up</button>
           <div id="msg" class="muted" style="margin-top:6px"></div>
         </div>
 
@@ -96,11 +103,12 @@
   </div>
 
   <script>
-    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec'; // e.g., https://script.google.com/macros/s/AKfy.../exec
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-    const yearSelect = document.getElementById('yearSelect');
     const stallChips = document.getElementById('stallChips');
+    const timeSelect = document.getElementById('timeSelect');
     const openAll = document.getElementById('openAll');
+
     const slotsEl = document.getElementById('slots');
     const foundCount = document.getElementById('foundCount');
     const selectedEl = document.getElementById('selected');
@@ -114,21 +122,18 @@
     const email = document.getElementById('email');
     const mobile = document.getElementById('mobile');
 
-    let meta = { stalls: [], classes: [] };
-    let current = { year: '', stall: '', open: false };
-    let slots = [];
-    let selection = new Set();
+    let meta = { stalls: [], times: [], classes: [] };
+    let current = { stalls: new Set(), time: '', open: false };
+    let groups = [];     // server grouped slots
+    // selection: map group_id -> { qty, urns[] }
+    const selection = new Map();
 
     function qs(name) { return new URLSearchParams(location.search).get(name); }
+    function showDebug(msg){ debugEl.textContent = msg || ''; if (msg) console.log('[DEBUG]', msg); }
 
     async function fetchJSON(url){
       const res = await fetch(url, {credentials:'omit'});
       return await res.json();
-    }
-
-    function showDebug(msg){
-      debugEl.textContent = msg;
-      console.log('[DEBUG]', msg);
     }
 
     async function loadMeta(){
@@ -136,42 +141,40 @@
       if (!data.ok){ showDebug('Meta error: ' + (data.error || 'unknown')); return; }
       meta = data;
 
-      // Years from Descriptions
-      const years = [...new Set((meta.stalls||[]).map(s => String(s.year_group_owner)))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
-      yearSelect.innerHTML = `<option value="">All years</option>` + years.map(y => `<option value="${y}">Year ${y}</option>`).join('');
-      const yQS = qs('year'); if (yQS) yearSelect.value = yQS;
-
-      // Stall chips
-      const stalls = [...new Set((meta.stalls||[]).map(s => s.stall))];
-      stallChips.innerHTML = stalls.map(s => {
-        const m = meta.stalls.find(x => x.stall === s) || {};
-        const tip = (m.description || '').replace(/"/g,'&quot;');
-        return `<span class="chip" data-stall="${s}" title="${tip}">${s}</span>`;
-      }).join('');
+      // Stalls chips (multi-select)
+      stallChips.innerHTML = (meta.stalls || meta.stalls_meta || meta.stalls || []).length
+        ? [...new Set(meta.stalls)].map(s => `<span class="chip" data-stall="${s}">${s}</span>`).join('')
+        : '';
       stallChips.addEventListener('click', (e)=>{
         const chip = e.target.closest('.chip');
         if (!chip) return;
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        current.stall = chip.dataset.stall;
-        render();
-        loadSlots();
+        const s = chip.dataset.stall;
+        if (current.stalls.has(s)) { current.stalls.delete(s); chip.classList.remove('active'); }
+        else { current.stalls.add(s); chip.classList.add('active'); }
+        loadGroups();
       });
 
+      // Time dropdown (exclude N/A handled on server)
+      const times = data.times || [];
+      timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t => `<option value="${t}">${t}</option>`).join('');
+      const tQS = qs('time'); if (tQS) { timeSelect.value = tQS; current.time = tQS; }
+      timeSelect.addEventListener('change', () => { current.time = timeSelect.value; loadGroups(); });
+
       // Child class dropdown
-      const classes = (meta.classes || []).map(c => c.class).filter(Boolean).sort();
+      const classes = (data.classes || []).map(c => c.class).filter(Boolean).sort();
       childClass.innerHTML = `<option value="">—</option>` + classes.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
-    async function loadSlots(){
+    async function loadGroups(){
       const params = new URLSearchParams();
       params.set('action','slots');
-      if (current.year) params.set('year', current.year);
-      if (current.stall) params.set('stall', current.stall);
-      if (current.open) params.set('open', '1'); // show booked too
+      if (current.stalls.size) params.set('stall', Array.from(current.stalls).join(','));
+      if (current.time) params.set('time', current.time);
+      if (current.open) params.set('open','1');
+
       const data = await fetchJSON(`${API_BASE}?${params.toString()}`);
-      if (!data.ok){ showDebug('Slots error: ' + (data.error || 'unknown')); slots = []; render(); return; }
-      slots = data.data || [];
+      if (!data.ok){ showDebug('Slots error: ' + (data.error || 'unknown')); groups = []; render(); return; }
+      groups = data.data || [];
       render();
     }
 
@@ -189,57 +192,79 @@
     }
 
     function render(){
-      const list = slots
-        .filter(s => current.year ? String(s.year_group_owner)===String(current.year) : true)
-        .filter(s => current.stall ? s.stall===current.stall : true);
-
-      foundCount.textContent = list.length ? `— ${list.length} found` : '';
-      slotsEl.innerHTML = list.map(s => {
-        const remaining = Number(s.remaining||0);
-        const disabled = remaining <= 0;
-        const selected = selection.has(s.slot_id);
-        const btnText = disabled ? 'Booked' : (selected ? 'Remove' : 'Select');
+      // Build cards
+      foundCount.textContent = groups.length ? `— ${groups.length} groups` : '';
+      slotsEl.innerHTML = groups.map(g => {
+        const sel = selection.get(g.group_id)?.qty || 0;
+        const canAdd = g.remaining - sel > 0;
         return `<div class="slot">
-          <div class="time">${s.time || ''}</div>
+          <div class="time">${g.time || ''}</div>
           <div>
-            <div><strong>${s.role || ''}</strong></div>
-            <div class="muted">${s.stall}${s.slot ? ' • ' + s.slot : ''}</div>
+            <div><strong>${g.role || ''}</strong></div>
+            <div class="muted">${g.stall}</div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:6px; align-items:stretch">
-            <div class="badge"><strong>${remaining}</strong> remaining</div>
-            <button class="btn" data-id="${s.slot_id}" ${disabled? 'disabled':''}>${btnText}</button>
+          <div class="qty" data-id="${g.group_id}">
+            <div class="badge"><strong>${g.remaining - sel}</strong> remaining</div>
+            <button class="dec">−</button>
+            <div><strong>${sel}</strong> selected</div>
+            <button class="inc" ${canAdd ? '' : 'disabled'}>＋</button>
           </div>
         </div>`;
       }).join('');
 
-      slotsEl.querySelectorAll('button.btn').forEach(btn => btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        if (selection.has(id)) selection.delete(id); else selection.add(id);
-        render();
-        updateConfirmState();
-      }));
+      // Wire steppers
+      slotsEl.querySelectorAll('.qty').forEach(q => {
+        const id = q.dataset.id;
+        const group = groups.find(g => g.group_id === id);
+        q.querySelector('.inc').addEventListener('click', () => {
+          const cur = selection.get(id) || { qty:0, urns:[] };
+          if (cur.qty < group.remaining) {
+            const nextUrn = group.available_urns[cur.qty]; // take next available
+            cur.qty += 1;
+            cur.urns.push(nextUrn);
+            selection.set(id, cur);
+            render();
+          }
+        });
+        q.querySelector('.dec').addEventListener('click', () => {
+          const cur = selection.get(id) || { qty:0, urns:[] };
+          if (cur.qty > 0) {
+            cur.qty -= 1;
+            cur.urns.pop();
+            if (cur.qty === 0) selection.delete(id); else selection.set(id, cur);
+            render();
+          }
+        });
+      });
 
-      selectedEl.innerHTML = selection.size
-        ? `<ul>${Array.from(selection).map(id => `<li>${id}</li>`).join('')}</ul>`
+      // Selected list
+      const allUrns = Array.from(selection.values()).flatMap(v => v.urns);
+      selectedEl.innerHTML = allUrns.length
+        ? `<ul>${allUrns.map(u => `<li>${u}</li>`).join('')}</ul>`
         : '<div class="muted">No positions selected yet.</div>';
+
+      updateConfirmState();
     }
 
     function updateConfirmState(){
-      const ok = firstName.value && lastName.value && email.value && mobile.value && selection.size>0;
+      const total = Array.from(selection.values()).reduce((n, v) => n + v.qty, 0);
+      const ok = firstName.value && lastName.value && email.value && mobile.value && total > 0;
       confirmBtn.disabled = !ok;
     }
 
     document.addEventListener('input', updateConfirmState);
+    openAll.addEventListener('change', () => { current.open = openAll.checked; loadGroups(); });
 
     confirmBtn.addEventListener('click', async () => {
+      const allUrns = Array.from(selection.values()).flatMap(v => v.urns);
       msgEl.textContent = 'Submitting…';
       const payload = {
         first_name: firstName.value.trim(),
         last_name: lastName.value.trim(),
         email: email.value.trim(),
         mobile: mobile.value.trim(), // REQUIRED
-        child_class: childClass.value, // server derives year if present
-        slot_ids: Array.from(selection),
+        child_class: childClass.value,
+        slot_ids: allUrns,
       };
       try{
         const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -247,35 +272,22 @@
         if (!data.ok){ msgEl.innerHTML = `<span class="error">${data.error || 'There was an error'}</span>`; return; }
         msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
         selection.clear();
-        await Promise.all([loadSlots(), loadSummary()]);
-        render();
-        updateConfirmState();
+        await Promise.all([loadGroups(), loadSummary()]);
       }catch(err){
         msgEl.innerHTML = `<span class="error">${String(err)}</span>`;
       }
     });
 
-    // Initial state from URL
-    (function initFromQS(){
-      current.year = qs('year') || '';
-      current.open = qs('open') === '1';
-      openAll.checked = current.open;
-    })();
-
-    openAll.addEventListener('change', () => { current.open = openAll.checked; loadSlots(); });
-    yearSelect.addEventListener('change', () => { current.year = yearSelect.value; loadSlots(); });
-
     // Boot
     (async function(){
       try{
         const ping = await fetchJSON(`${API_BASE}?action=ping`);
-        if (!ping.ok) showDebug('Ping failed. Check deployment access settings.');
-      }catch(e){ showDebug('Cannot reach API. Is the Web App URL correct / deployed?'); }
+        if (!ping.ok) showDebug('Ping failed.');
+      }catch(e){ showDebug('Cannot reach API. Check Web App URL.'); }
       await loadMeta();
       await loadSummary();
-      await loadSlots();
+      await loadGroups();
     })();
   </script>
 </body>
 </html>
-
