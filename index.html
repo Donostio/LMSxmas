@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LMS Christmas Fair — Volunteer sign-up</title>
+  <style>
+    :root{ --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d; --accent:#3498db; --good:#2ecc71; --warn:#f1c40f; --danger:#e74c3c; --badge:#f5f7fa; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+    .wrap{ max-width:1160px; margin:24px auto; padding:0 16px; }
+    .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
+    h1{ font-size:28px; margin:0 0 6px; }
+    .muted{ color:var(--muted); }
+    .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
+    .filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    select, input, button, .chip{ font:inherit; }
+    select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); }
+    .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; }
+    .chip.active{ background:#d1e9ff; }
+    .slots{ display:flex; flex-direction:column; gap:12px; }
+    .slot{ display:grid; grid-template-columns: 140px 1fr 160px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
+    .time{ background:#f5f5f8; border:1px solid #e6ebf1; border-radius:12px; padding:8px; text-align:center; }
+    .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; }
+    .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
+    .btn:disabled{ opacity:.5; cursor:not-allowed; }
+    .panel{ display:flex; flex-direction:column; gap:8px; }
+    .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
+    .bar{ height:100%; background:var(--good); width:0%; }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>LMS Christmas Fair — Volunteer sign-up</h1>
+      <div class="muted">Filter by year/stall • Pick shifts • See remaining places live</div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="filters">
+        <label>Year group
+          <select id="yearSelect"></select>
+        </label>
+        <div id="stallChips"></div>
+        <label><input type="checkbox" id="openAll"/> Show all years</label>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <div class="card" style="margin-bottom:8px"><strong>Available slots</strong> <span class="muted" id="foundCount"></span></div>
+        <div id="slots" class="slots"></div>
+      </div>
+      <div class="panel">
+        <div class="card">
+          <strong>Your details</strong>
+          <div class="grid2" style="margin-top:8px">
+            <div><label>First name<input id="firstName"/></label></div>
+            <div><label>Last name<input id="lastName"/></label></div>
+            <div><label>Email<input id="email" type="email"/></label></div>
+            <div><label>Mobile (optional)<input id="mobile"/></label></div>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <div><label>Child class
+              <select id="childClass"></select>
+            </label></div>
+            <div></div>
+          </div>
+          <div class="muted" style="margin-top:6px">By signing up you agree we can contact you about this event.</div>
+        </div>
+        <div class="card">
+          <strong>Your selected slots</strong>
+          <div id="selected"></div>
+          <button id="confirm" class="btn" style="margin-top:8px" disabled>Confirm sign-up</button>
+          <div id="msg" class="muted" style="margin-top:6px"></div>
+        </div>
+        <div class="card">
+          <strong>Booked summary</strong>
+          <div id="summary"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec'; // e.g., https://script.google.com/macros/s/AKfyc.../exec
+
+    const yearSelect = document.getElementById('yearSelect');
+    const stallChips = document.getElementById('stallChips');
+    const openAll = document.getElementById('openAll');
+    const slotsEl = document.getElementById('slots');
+    const foundCount = document.getElementById('foundCount');
+    const selectedEl = document.getElementById('selected');
+    const confirmBtn = document.getElementById('confirm');
+    const msgEl = document.getElementById('msg');
+    const childClass = document.getElementById('childClass');
+
+    const firstName = document.getElementById('firstName');
+    const lastName = document.getElementById('lastName');
+    const email = document.getElementById('email');
+    const mobile = document.getElementById('mobile');
+
+    let meta = { stalls: [], classes: [] };
+    let current = { year: '', stall: '', open: false };
+    let slots = [];
+    let selection = new Set();
+
+    function qs(name) { return new URLSearchParams(location.search).get(name); }
+
+    async function fetchJSON(url){
+      const res = await fetch(url);
+      const text = await res.text();
+      const body = text.trim().startsWith('{') ? text : text.substring(text.indexOf('{'));
+      return JSON.parse(body);
+    }
+
+    async function loadMeta(){
+      const data = await fetchJSON(`${API_BASE}?action=meta`);
+      meta = data;
+
+      // Years dropdown (7..11) derived from stalls meta
+      const years = [...new Set(meta.stalls.map(s => String(s.year_group_owner)))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
+      yearSelect.innerHTML = `<option value="">All years</option>` + years.map(y => `<option value="${y}">Year ${y}</option>`).join('');
+      const yQS = qs('year'); if (yQS) yearSelect.value = yQS;
+
+      // Stall chips
+      const stalls = [...new Set(meta.stalls.map(s => s.stall))];
+      stallChips.innerHTML = stalls.map(s => `<span class="chip" data-stall="${s}">${s}</span>`).join('');
+      stallChips.addEventListener('click', (e)=>{
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        current.stall = chip.dataset.stall;
+        render();
+      });
+
+      // Child class dropdown from `Classes` tab
+      const classes = (meta.classes || []).map(c => c.class).filter(Boolean).sort();
+      childClass.innerHTML = `<option value="">—</option>` + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    async function loadSlots(){
+      const params = new URLSearchParams();
+      params.set('action','slots');
+      if (current.year) params.set('year', current.year);
+      if (current.stall) params.set('stall', current.stall);
+      if (current.open) params.set('open', '1');
+      const data = await fetchJSON(`${API_BASE}?${params.toString()}`);
+      slots = data.data || [];
+      render();
+    }
+
+    async function loadSummary(){
+      const data = await fetchJSON(`${API_BASE}?action=summary`);
+      const sum = data.data || [];
+      const el = document.getElementById('summary');
+      el.innerHTML = sum.map(s => {
+        const pct = Math.round((s.pct||0)*100);
+        return `<div style="margin:6px 0">${s.stall} (Y${s.year_group_owner}) — ${s.booked}/${s.capacity}
+          <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+    }
+
+    function render(){
+      const list = slots
+        .filter(s => current.year ? String(s.year_group_owner)===String(current.year) || current.open : true)
+        .filter(s => current.stall ? s.stall===current.stall : true);
+
+      foundCount.textContent = `— ${list.length} found`;
+
+      slotsEl.innerHTML = list.map(s => {
+        const remaining = Number(s.remaining||0);
+        const cap = Number(s.capacity||0);
+        const disabled = remaining <= 0;
+        const selected = selection.has(s.slot_id);
+        const btnText = disabled ? 'Full' : (selected ? 'Remove' : 'Select');
+        return `<div class="slot">
+          <div class="time">
+            <div><strong>${s.date}</strong></div>
+            <div>${s.start}–${s.end}</div>
+          </div>
+          <div>
+            <div><strong>${s.role}</strong></div>
+            <div class="muted">${s.stall} • Capacity ${cap}${s.location? ' • ' + s.location: ''}</div>
+            ${s.notes ? `<div class="muted">${s.notes}</div>` : ''}
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:stretch">
+            <div class="badge"><strong>${remaining}</strong> remaining</div>
+            <button class="btn" data-id="${s.slot_id}" ${disabled? 'disabled':''}>${btnText}</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      slotsEl.querySelectorAll('button.btn').forEach(btn => btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if (selection.has(id)) selection.delete(id); else selection.add(id);
+        render();
+        updateConfirmState();
+      }));
+
+      // Selected list (compact)
+      selectedEl.innerHTML = Array.from(selection).length
+        ? `<ul style="padding-left:1rem;margin:6px 0 0">
+            ${Array.from(selection).map(id => `<li>${id}</li>`).join('')}
+           </ul>`
+        : '<div class="muted">No slots selected yet.</div>';
+    }
+
+    function updateConfirmState(){
+      confirmBtn.disabled = !(firstName.value && lastName.value && email.value && selection.size>0);
+    }
+
+    document.addEventListener('input', updateConfirmState);
+
+    confirmBtn.addEventListener('click', async () => {
+      msgEl.textContent = 'Submitting…';
+      const payload = {
+        first_name: firstName.value.trim(),
+        last_name: lastName.value.trim(),
+        email: email.value.trim(),
+        mobile: mobile.value.trim(),
+        child_class: childClass.value, // single field; year will be derived on the server
+        slot_ids: Array.from(selection),
+      };
+      const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!data.ok){ msgEl.textContent = data.error || 'There was an error'; return; }
+      msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
+      selection.clear();
+      await Promise.all([loadSlots(), loadSummary()]);
+      render();
+      updateConfirmState();
+    });
+
+    // Initial state from URL
+    current.year = qs('year') || '';
+    current.open = qs('open') === '1';
+
+    yearSelect.addEventListener('change', () => { current.year = yearSelect.value; loadSlots(); });
+    openAll.addEventListener('change', () => { current.open = openAll.checked; loadSlots(); });
+
+    // Boot
+    (async function(){
+      await loadMeta();
+      await loadSummary();
+      await loadSlots();
+    })();
+  </script>
+</body>
+</html>
