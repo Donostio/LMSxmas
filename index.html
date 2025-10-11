@@ -15,6 +15,7 @@
     .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
     @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
     .filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    label{ display:flex; flex-direction:column; gap:6px; font-weight:600; }
     select, input, button, .chip{ font:inherit; }
     select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); }
     .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; }
@@ -30,6 +31,8 @@
     .bar{ height:100%; background:var(--good); width:0%; }
     .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
     ul{ margin:6px 0 0; padding-left:1rem; }
+    .error{ color:var(--danger); font-weight:600; }
+    .help{ font-size:12px; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -44,8 +47,10 @@
         <label>Year group
           <select id="yearSelect"></select>
         </label>
-        <div id="stallChips"></div>
-        <label><input type="checkbox" id="openAll"/> Show booked as well</label>
+        <div id="stallChips" style="display:flex; gap:8px; flex-wrap:wrap"></div>
+        <label style="flex-direction:row; align-items:center; gap:10px; font-weight:400; margin-left:auto">
+          <input type="checkbox" id="openAll"/> <span>Show booked as well</span>
+        </label>
       </div>
     </div>
 
@@ -69,7 +74,7 @@
             </label></div>
             <div></div>
           </div>
-          <div class="muted" style="margin-top:6px">By signing up you agree we can contact you about this event.</div>
+          <div class="help">By signing up you agree we can contact you about this event.</div>
         </div>
 
         <div class="card">
@@ -85,10 +90,12 @@
         </div>
       </div>
     </div>
+
+    <div id="debug" class="help" style="margin-top:12px"></div>
   </div>
 
   <script>
-    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec'; // e.g., https://script.google.com/macros/s/AKfy.../exec
 
     const yearSelect = document.getElementById('yearSelect');
     const stallChips = document.getElementById('stallChips');
@@ -99,6 +106,7 @@
     const confirmBtn = document.getElementById('confirm');
     const msgEl = document.getElementById('msg');
     const childClass = document.getElementById('childClass');
+    const debugEl = document.getElementById('debug');
 
     const firstName = document.getElementById('firstName');
     const lastName = document.getElementById('lastName');
@@ -113,24 +121,33 @@
     function qs(name) { return new URLSearchParams(location.search).get(name); }
 
     async function fetchJSON(url){
-      const res = await fetch(url);
-      const text = await res.text();
-      const body = text.trim().startsWith('{') ? text : text.substring(text.indexOf('{'));
-      return JSON.parse(body);
+      const res = await fetch(url, {credentials:'omit'});
+      const data = await res.json();
+      return data;
+    }
+
+    function showDebug(msg){
+      debugEl.textContent = msg;
+      console.log('[DEBUG]', msg);
     }
 
     async function loadMeta(){
       const data = await fetchJSON(`${API_BASE}?action=meta`);
+      if (!data.ok){ showDebug('Meta error: ' + (data.error || 'unknown')); return; }
       meta = data;
 
-      // Years from Descriptions meta
-      const years = [...new Set(meta.stalls.map(s => String(s.year_group_owner)))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
+      // Years from Descriptions
+      const years = [...new Set((meta.stalls||[]).map(s => String(s.year_group_owner)))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
       yearSelect.innerHTML = `<option value="">All years</option>` + years.map(y => `<option value="${y}">Year ${y}</option>`).join('');
       const yQS = qs('year'); if (yQS) yearSelect.value = yQS;
 
       // Stall chips
-      const stalls = [...new Set(meta.stalls.map(s => s.stall))];
-      stallChips.innerHTML = stalls.map(s => `<span class="chip" data-stall="${s}" title="${(meta.stalls.find(m=>m.stall===s)||{}).description||''}">${s}</span>`).join('');
+      const stalls = [...new Set((meta.stalls||[]).map(s => s.stall))];
+      stallChips.innerHTML = stalls.map(s => {
+        const m = meta.stalls.find(x => x.stall === s) || {};
+        const tip = (m.description || '').replace(/"/g,'&quot;');
+        return `<span class="chip" data-stall="${s}" title="${tip}">${s}</span>`;
+      }).join('');
       stallChips.addEventListener('click', (e)=>{
         const chip = e.target.closest('.chip');
         if (!chip) return;
@@ -138,6 +155,7 @@
         chip.classList.add('active');
         current.stall = chip.dataset.stall;
         render();
+        loadSlots(); // refresh count under new stall filter
       });
 
       // Child class dropdown
@@ -152,12 +170,14 @@
       if (current.stall) params.set('stall', current.stall);
       if (current.open) params.set('open', '1'); // show booked too
       const data = await fetchJSON(`${API_BASE}?${params.toString()}`);
+      if (!data.ok){ showDebug('Slots error: ' + (data.error || 'unknown')); slots = []; render(); return; }
       slots = data.data || [];
       render();
     }
 
     async function loadSummary(){
       const data = await fetchJSON(`${API_BASE}?action=summary`);
+      if (!data.ok){ showDebug('Summary error: ' + (data.error || 'unknown')); return; }
       const sum = data.data || [];
       const el = document.getElementById('summary');
       el.innerHTML = sum.map(s => {
@@ -173,7 +193,7 @@
         .filter(s => current.year ? String(s.year_group_owner)===String(current.year) : true)
         .filter(s => current.stall ? s.stall===current.stall : true);
 
-      foundCount.textContent = `— ${list.length} found`;
+      foundCount.textContent = list.length ? `— ${list.length} found` : '';
       slotsEl.innerHTML = list.map(s => {
         const remaining = Number(s.remaining||0);
         const disabled = remaining <= 0;
@@ -205,7 +225,8 @@
     }
 
     function updateConfirmState(){
-      confirmBtn.disabled = !(firstName.value && lastName.value && email.value && selection.size>0);
+      const ok = firstName.value && lastName.value && email.value && selection.size>0;
+      confirmBtn.disabled = !ok;
     }
 
     document.addEventListener('input', updateConfirmState);
@@ -217,28 +238,40 @@
         last_name: lastName.value.trim(),
         email: email.value.trim(),
         mobile: mobile.value.trim(),
-        child_class: childClass.value, // single field; server derives year
+        child_class: childClass.value, // server derives year
         slot_ids: Array.from(selection),
       };
-      const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      const data = await res.json();
-      if (!data.ok){ msgEl.textContent = data.error || 'There was an error'; return; }
-      msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
-      selection.clear();
-      await Promise.all([loadSlots(), loadSummary()]);
-      render();
-      updateConfirmState();
+      try{
+        const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!data.ok){ msgEl.innerHTML = `<span class="error">${data.error || 'There was an error'}</span>`; return; }
+        msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
+        selection.clear();
+        await Promise.all([loadSlots(), loadSummary()]);
+        render();
+        updateConfirmState();
+      }catch(err){
+        msgEl.innerHTML = `<span class="error">${String(err)}</span>`;
+      }
     });
 
     // Initial state from URL
-    current.year = qs('year') || '';
-    current.open = qs('open') === '1';
-    openAll.checked = current.open;
+    (function initFromQS(){
+      current.year = qs('year') || '';
+      current.open = qs('open') === '1';
+      openAll.checked = current.open;
+    })();
+
     openAll.addEventListener('change', () => { current.open = openAll.checked; loadSlots(); });
     yearSelect.addEventListener('change', () => { current.year = yearSelect.value; loadSlots(); });
 
     // Boot
     (async function(){
+      // Optional: quick ping to verify endpoint
+      try{
+        const ping = await fetchJSON(`${API_BASE}?action=ping`);
+        if (!ping.ok) showDebug('Ping failed. Check deployment access settings.');
+      }catch(e){ showDebug('Cannot reach API. Is the Web App URL correct / deployed?'); }
       await loadMeta();
       await loadSummary();
       await loadSlots();
