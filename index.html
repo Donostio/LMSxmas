@@ -35,12 +35,14 @@
     .req::after{ content:" *"; color:var(--danger); font-weight:700; }
     .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
     .btn.selected{ background:#1f7cc7; }
+    .loading{ padding:16px; color:#334155; font-weight:600; }
     /* Password gate */
     .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
     .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   </style>
 </head>
 <body>
+  <!-- Password gate -->
   <div id="gate" class="gate" style="display:none">
     <div class="box">
       <h3 style="margin:0 0 8px">Enter password</h3>
@@ -76,7 +78,9 @@
     <div class="row" style="margin-top:12px">
       <div>
         <div class="card" style="margin-bottom:8px"><strong>Available positions</strong> <span class="muted" id="foundCount"></span></div>
-        <div id="slots" class="slots"></div>
+        <div id="slots" class="slots">
+          <div id="loading" class="loading">🎅 Ho Ho Ho... Loading helper opportunities</div>
+        </div>
       </div>
       <div class="panel">
         <div class="card">
@@ -85,7 +89,7 @@
             <div><label class="req">First name<input id="firstName" autocomplete="given-name"/></label></div>
             <div><label class="req">Last name<input id="lastName" autocomplete="family-name"/></label></div>
             <div><label class="req">Email<input id="email" type="email" autocomplete="email"/></label></div>
-            <div><label class="req">Mobile (for WhatsApp updates)<input id="mobile" type="tel" autocomplete="tel"/></label></div>
+            <div><label class="req">Mobile (for WhatsApp updates)<input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/></label></div>
           </div>
           <div class="grid2" style="margin-top:8px">
             <div><label>Child class
@@ -117,6 +121,25 @@
     const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
     const PASSWORD = 'LMSWinterWonder';
 
+    // Custom stall order for Booked summary (exact labels)
+    const SUMMARY_ORDER = [
+      "Y7: Santa's Grotto (Y7)",
+      "Y8 Mulled wine, Mince Pies & Hot Drinks (Y8)",
+      "Y9: Bakery and Spin the Wheel (Y9)",
+      "Y10: Books & Pre Loved Stall Rota (Y10)",
+      "Y11: Teen Tombola (Y11)",
+      "Y12/13 Vintage, Uniform & Bottle Tombola Rota (Y12)"
+    ];
+
+    // Fixed class order
+    const CLASS_ORDER = [
+      "7AB","8RE","8PH","8NAA","8KH",
+      "9VM","9NA","9AW","9ATB",
+      "10OM","10KF","10JT","10GR","10AN",
+      "11KAH","11IDC","11EW","11DU","11CJ",
+      "12/13SSS","12/13RC","12/13NB","12/13LVE","12/13LN","12/13JD","12/13ID","12/13EDW","12/13AR","12/13ALB"
+    ];
+
     // Password gate
     const gate = document.getElementById('gate');
     const gateInput = document.getElementById('gateInput');
@@ -125,14 +148,8 @@
     const app = document.getElementById('app');
     function openGate(){ gate.style.display='flex'; app.style.display='none'; }
     function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
-    function checkGate(){
-      if (localStorage.getItem('lms_pw_ok')==='1') { openApp(); return; }
-      openGate();
-    }
-    gateBtn.addEventListener('click', ()=>{
-      if (gateInput.value === PASSWORD) openApp();
-      else gateMsg.textContent = 'Incorrect password';
-    });
+    function checkGate(){ if (localStorage.getItem('lms_pw_ok')==='1') openApp(); else openGate(); }
+    gateBtn.addEventListener('click', ()=>{ if (gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
     const stallChips = document.getElementById('stallChips');
     const timeSelect = document.getElementById('timeSelect');
@@ -187,12 +204,12 @@
       const tQS = qs('time'); if (tQS) { timeSelect.value = tQS; current.time = tQS; }
       timeSelect.addEventListener('change', () => { current.time = timeSelect.value; loadGroups(); });
 
-      // Child class dropdown
-      const classes = (data.classes || []).map(c => c.class).filter(Boolean).sort();
-      childClass.innerHTML = `<option value="">—</option>` + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      // Child class dropdown — fixed order you gave
+      childClass.innerHTML = `<option value="">—</option>` + CLASS_ORDER.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
     async function loadGroups(){
+      document.getElementById('loading').style.display = 'block';
       const params = new URLSearchParams();
       params.set('action','slots');
       if (current.stalls.size) params.set('stall', Array.from(current.stalls).join(','));
@@ -203,16 +220,34 @@
       if (!data.ok){ showDebug('Slots error: ' + (data.error || 'unknown')); groups = []; render(); return; }
       groups = data.data || [];
       render();
+      document.getElementById('loading').style.display = 'none';
     }
 
     async function loadSummary(){
       const data = await fetchJSON(`${API_BASE}?action=summary`);
       if (!data.ok){ showDebug('Summary error: ' + (data.error || 'unknown')); return; }
       const sum = data.data || [];
+
+      // Build labels that match your requested order
+      const items = sum.map(s => {
+        // Try to compose the label the way you listed (stall already contains name)
+        // If your Descriptions already include the exact labels, map here instead.
+        const label = `${s.stall} (Y${s.year_group_owner})`;
+        return { label, booked: s.booked, capacity: s.capacity, pct: s.pct };
+      });
+
+      // Custom order first, then any leftovers
+      const orderMap = new Map(SUMMARY_ORDER.map((lab, i) => [lab, i]));
+      items.sort((a,b) => {
+        const ia = orderMap.has(a.label) ? orderMap.get(a.label) : 999 + a.label.localeCompare(b.label);
+        const ib = orderMap.has(b.label) ? orderMap.get(b.label) : 999 + b.label.localeCompare(a.label);
+        return ia - ib;
+      });
+
       const el = document.getElementById('summary');
-      el.innerHTML = sum.map(s => {
+      el.innerHTML = items.map(s => {
         const pct = Math.round((s.pct||0)*100);
-        return `<div style="margin:6px 0">${s.stall} (Y${s.year_group_owner}) — ${s.booked}/${s.capacity}
+        return `<div style="margin:6px 0">${s.label} — ${s.booked}/${s.capacity}
           <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
         </div>`;
       }).join('');
@@ -246,7 +281,9 @@
           </div>`;
         });
       }
-      slotsEl.innerHTML = html;
+      // Keep the loading message node at the top if present
+      const loadingNode = document.getElementById('loading');
+      slotsEl.innerHTML = loadingNode ? loadingNode.outerHTML + html : html;
 
       // Wire selects (toggle one per group)
       slotsEl.querySelectorAll('.slot').forEach(card => {
@@ -257,9 +294,9 @@
           if (selection.has(id)) {
             selection.delete(id);
           } else if (g.remaining > 0) {
-            // take the first available URN
             const urn = g.available_urns[0];
-            selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time}` });
+            const label = `${g.year_stall}, ${g.role}, ${g.time}`;
+            selection.set(id, { urn, label });
           }
           render();
         });
@@ -291,7 +328,14 @@
 
     confirmBtn.addEventListener('click', async () => {
       const allUrns = Array.from(selection.values()).map(v => v.urn);
-      msgEl.textContent = 'Submitting…';
+      if (confirmBtn.disabled) {
+        msgEl.innerHTML = `<span class="error">Please complete your details and select at least one position.</span>`;
+        return;
+      }
+      const originalText = confirmBtn.textContent;
+      confirmBtn.textContent = 'Submitting…';
+      confirmBtn.disabled = true;
+      msgEl.textContent = '';
       const payload = {
         first_name: firstName.value.trim(),
         last_name: lastName.value.trim(),
@@ -303,12 +347,17 @@
       try{
         const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
-        if (!data.ok){ msgEl.innerHTML = `<span class="error">${data.error || 'There was an error'}</span>`; return; }
-        msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
-        selection.clear();
-        await Promise.all([loadGroups(), loadSummary()]);
+        if (!data.ok){ msgEl.innerHTML = `<span class="error">${data.error || 'There was an error'}</span>`; }
+        else {
+          msgEl.textContent = 'Thanks! You’re in. We’ve updated totals.';
+          selection.clear();
+          await Promise.all([loadGroups(), loadSummary()]);
+        }
       }catch(err){
         msgEl.innerHTML = `<span class="error">${String(err)}</span>`;
+      }finally{
+        confirmBtn.textContent = originalText;
+        updateConfirmState(); // re-enable if still valid
       }
     });
 
@@ -327,4 +376,5 @@
   </script>
 </body>
 </html>
+
 
