@@ -33,6 +33,7 @@
     ul{ margin:6px 0 0; padding-left:1rem; }
     .error{ color:var(--danger); font-weight:600; }
     .help{ font-size:12px; color:var(--muted); }
+    .req::after{ content:" *"; color:var(--danger); font-weight:700; }
   </style>
 </head>
 <body>
@@ -63,10 +64,10 @@
         <div class="card">
           <strong>Your details</strong>
           <div class="grid2" style="margin-top:8px">
-            <div><label>First name<input id="firstName"/></label></div>
-            <div><label>Last name<input id="lastName"/></label></div>
-            <div><label>Email<input id="email" type="email"/></label></div>
-            <div><label>Mobile (optional)<input id="mobile"/></label></div>
+            <div><label class="req">First name<input id="firstName" autocomplete="given-name"/></label></div>
+            <div><label class="req">Last name<input id="lastName" autocomplete="family-name"/></label></div>
+            <div><label class="req">Email<input id="email" type="email" autocomplete="email"/></label></div>
+            <div><label class="req">Mobile (for WhatsApp updates)<input id="mobile" type="tel" autocomplete="tel"/></label></div>
           </div>
           <div class="grid2" style="margin-top:8px">
             <div><label>Child class
@@ -74,7 +75,7 @@
             </label></div>
             <div></div>
           </div>
-          <div class="help">By signing up you agree we can contact you about this event.</div>
+          <div class="help">We’ll use your mobile number for rota updates on the day.</div>
         </div>
 
         <div class="card">
@@ -122,8 +123,7 @@
 
     async function fetchJSON(url){
       const res = await fetch(url, {credentials:'omit'});
-      const data = await res.json();
-      return data;
+      return await res.json();
     }
 
     function showDebug(msg){
@@ -155,7 +155,7 @@
         chip.classList.add('active');
         current.stall = chip.dataset.stall;
         render();
-        loadSlots(); // refresh count under new stall filter
+        loadSlots();
       });
 
       // Child class dropdown
@@ -225,7 +225,7 @@
     }
 
     function updateConfirmState(){
-      const ok = firstName.value && lastName.value && email.value && selection.size>0;
+      const ok = firstName.value && lastName.value && email.value && mobile.value && selection.size>0;
       confirmBtn.disabled = !ok;
     }
 
@@ -237,8 +237,8 @@
         first_name: firstName.value.trim(),
         last_name: lastName.value.trim(),
         email: email.value.trim(),
-        mobile: mobile.value.trim(),
-        child_class: childClass.value, // server derives year
+        mobile: mobile.value.trim(), // REQUIRED
+        child_class: childClass.value, // server derives year if present
         slot_ids: Array.from(selection),
       };
       try{
@@ -267,7 +267,6 @@
 
     // Boot
     (async function(){
-      // Optional: quick ping to verify endpoint
       try{
         const ping = await fetchJSON(`${API_BASE}?action=ping`);
         if (!ping.ok) showDebug('Ping failed. Check deployment access settings.');
@@ -279,3 +278,4 @@
   </script>
 </body>
 </html>
+
