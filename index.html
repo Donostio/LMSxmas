@@ -20,8 +20,8 @@
     .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; }
     .chip.active{ background:#d1e9ff; }
     .slots{ display:flex; flex-direction:column; gap:12px; }
-    .slot{ display:grid; grid-template-columns: 140px 1fr 160px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
-    .time{ background:#f5f5f8; border:1px solid #e6ebf1; border-radius:12px; padding:8px; text-align:center; }
+    .slot{ display:grid; grid-template-columns: 160px 1fr 160px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
+    .time{ background:#f5f5f8; border:1px solid #e6ebf1; border-radius:12px; padding:8px; text-align:center; font-weight:600; }
     .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; }
     .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
     .btn:disabled{ opacity:.5; cursor:not-allowed; }
@@ -29,13 +29,14 @@
     .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
     .bar{ height:100%; background:var(--good); width:0%; }
     .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    ul{ margin:6px 0 0; padding-left:1rem; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-      <div class="muted">Filter by year/stall • Pick shifts • See remaining places live</div>
+      <div class="muted">Filter by year/stall • Pick positions • See remaining places live</div>
     </div>
 
     <div class="card" style="margin-top:12px">
@@ -44,13 +45,13 @@
           <select id="yearSelect"></select>
         </label>
         <div id="stallChips"></div>
-        <label><input type="checkbox" id="openAll"/> Show all years</label>
+        <label><input type="checkbox" id="openAll"/> Show booked as well</label>
       </div>
     </div>
 
     <div class="row" style="margin-top:12px">
       <div>
-        <div class="card" style="margin-bottom:8px"><strong>Available slots</strong> <span class="muted" id="foundCount"></span></div>
+        <div class="card" style="margin-bottom:8px"><strong>Available positions</strong> <span class="muted" id="foundCount"></span></div>
         <div id="slots" class="slots"></div>
       </div>
       <div class="panel">
@@ -70,12 +71,14 @@
           </div>
           <div class="muted" style="margin-top:6px">By signing up you agree we can contact you about this event.</div>
         </div>
+
         <div class="card">
-          <strong>Your selected slots</strong>
+          <strong>Your selected positions</strong>
           <div id="selected"></div>
           <button id="confirm" class="btn" style="margin-top:8px" disabled>Confirm sign-up</button>
           <div id="msg" class="muted" style="margin-top:6px"></div>
         </div>
+
         <div class="card">
           <strong>Booked summary</strong>
           <div id="summary"></div>
@@ -85,7 +88,7 @@
   </div>
 
   <script>
-    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec'; // e.g., https://script.google.com/macros/s/AKfyc.../exec
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
     const yearSelect = document.getElementById('yearSelect');
     const stallChips = document.getElementById('stallChips');
@@ -120,14 +123,14 @@
       const data = await fetchJSON(`${API_BASE}?action=meta`);
       meta = data;
 
-      // Years dropdown (7..11) derived from stalls meta
+      // Years from Descriptions meta
       const years = [...new Set(meta.stalls.map(s => String(s.year_group_owner)))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
       yearSelect.innerHTML = `<option value="">All years</option>` + years.map(y => `<option value="${y}">Year ${y}</option>`).join('');
       const yQS = qs('year'); if (yQS) yearSelect.value = yQS;
 
       // Stall chips
       const stalls = [...new Set(meta.stalls.map(s => s.stall))];
-      stallChips.innerHTML = stalls.map(s => `<span class="chip" data-stall="${s}">${s}</span>`).join('');
+      stallChips.innerHTML = stalls.map(s => `<span class="chip" data-stall="${s}" title="${(meta.stalls.find(m=>m.stall===s)||{}).description||''}">${s}</span>`).join('');
       stallChips.addEventListener('click', (e)=>{
         const chip = e.target.closest('.chip');
         if (!chip) return;
@@ -137,7 +140,7 @@
         render();
       });
 
-      // Child class dropdown from `Classes` tab
+      // Child class dropdown
       const classes = (meta.classes || []).map(c => c.class).filter(Boolean).sort();
       childClass.innerHTML = `<option value="">—</option>` + classes.map(c => `<option value="${c}">${c}</option>`).join('');
     }
@@ -147,7 +150,7 @@
       params.set('action','slots');
       if (current.year) params.set('year', current.year);
       if (current.stall) params.set('stall', current.stall);
-      if (current.open) params.set('open', '1');
+      if (current.open) params.set('open', '1'); // show booked too
       const data = await fetchJSON(`${API_BASE}?${params.toString()}`);
       slots = data.data || [];
       render();
@@ -167,26 +170,20 @@
 
     function render(){
       const list = slots
-        .filter(s => current.year ? String(s.year_group_owner)===String(current.year) || current.open : true)
+        .filter(s => current.year ? String(s.year_group_owner)===String(current.year) : true)
         .filter(s => current.stall ? s.stall===current.stall : true);
 
       foundCount.textContent = `— ${list.length} found`;
-
       slotsEl.innerHTML = list.map(s => {
         const remaining = Number(s.remaining||0);
-        const cap = Number(s.capacity||0);
         const disabled = remaining <= 0;
         const selected = selection.has(s.slot_id);
-        const btnText = disabled ? 'Full' : (selected ? 'Remove' : 'Select');
+        const btnText = disabled ? 'Booked' : (selected ? 'Remove' : 'Select');
         return `<div class="slot">
-          <div class="time">
-            <div><strong>${s.date}</strong></div>
-            <div>${s.start}–${s.end}</div>
-          </div>
+          <div class="time">${s.time || ''}</div>
           <div>
-            <div><strong>${s.role}</strong></div>
-            <div class="muted">${s.stall} • Capacity ${cap}${s.location? ' • ' + s.location: ''}</div>
-            ${s.notes ? `<div class="muted">${s.notes}</div>` : ''}
+            <div><strong>${s.role || ''}</strong></div>
+            <div class="muted">${s.stall}${s.slot ? ' • ' + s.slot : ''}</div>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px; align-items:stretch">
             <div class="badge"><strong>${remaining}</strong> remaining</div>
@@ -202,12 +199,9 @@
         updateConfirmState();
       }));
 
-      // Selected list (compact)
-      selectedEl.innerHTML = Array.from(selection).length
-        ? `<ul style="padding-left:1rem;margin:6px 0 0">
-            ${Array.from(selection).map(id => `<li>${id}</li>`).join('')}
-           </ul>`
-        : '<div class="muted">No slots selected yet.</div>';
+      selectedEl.innerHTML = selection.size
+        ? `<ul>${Array.from(selection).map(id => `<li>${id}</li>`).join('')}</ul>`
+        : '<div class="muted">No positions selected yet.</div>';
     }
 
     function updateConfirmState(){
@@ -223,7 +217,7 @@
         last_name: lastName.value.trim(),
         email: email.value.trim(),
         mobile: mobile.value.trim(),
-        child_class: childClass.value, // single field; year will be derived on the server
+        child_class: childClass.value, // single field; server derives year
         slot_ids: Array.from(selection),
       };
       const res = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -239,9 +233,9 @@
     // Initial state from URL
     current.year = qs('year') || '';
     current.open = qs('open') === '1';
-
-    yearSelect.addEventListener('change', () => { current.year = yearSelect.value; loadSlots(); });
+    openAll.checked = current.open;
     openAll.addEventListener('change', () => { current.open = openAll.checked; loadSlots(); });
+    yearSelect.addEventListener('change', () => { current.year = yearSelect.value; loadSlots(); });
 
     // Boot
     (async function(){
