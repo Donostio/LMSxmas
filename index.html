@@ -14,10 +14,10 @@
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
-  .filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
   label{ display:flex; flex-direction:column; gap:6px; font-weight:600; }
   select, input, button, .chip{ font:inherit; }
-  select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); }
+  select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); transition: border-color .15s, background .15s; }
   .chips{ display:flex; gap:8px; flex-wrap:wrap; }
   .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; user-select:none; }
   .chip.active{ background:#d1e9ff; }
@@ -36,6 +36,12 @@
   .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
   .btn.selected{ background:#1f7cc7; }
   .loading{ padding:16px; color:#334155; font-weight:600; }
+  /* Field-level validation */
+  .invalid{ border-color: var(--danger) !important; background:#fff5f5 !important; }
+  .field-error{ display:none; font-size:12px; color:var(--danger); margin-top:4px; }
+  .field-error.show{ display:block; }
+  /* Banner message */
+  .banner{ margin-top:8px; padding:8px 10px; border-radius:10px; background:#fff5f5; border:1px solid #ffd6d6; color:#9b1c1c; }
   /* Password gate */
   .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
@@ -56,15 +62,19 @@
 <div class="wrap" id="app" style="display:none">
   <div class="card">
     <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-    <div class="muted">Filter by stall/time • Pick positions • See remaining places live</div>
+    <div class="muted">Filter by year/time • Pick positions • See remaining places live</div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="filters" id="filters">
+    <div class="filters">
       <div style="flex:1 1 420px">
-        <div style="font-weight:600; margin-bottom:6px">Stalls</div>
+        <div style="font-weight:600; margin-bottom:6px">Year groups</div>
+        <div class="chips" id="yearChips"></div>
+        <div class="help">Tap to toggle; select multiple years or leave empty to see all.</div>
+      </div>
+      <div style="flex:1 1 420px">
+        <div style="font-weight:600; margin-bottom:6px">Stalls (optional)</div>
         <div class="chips" id="stallChips"></div>
-        <div class="help">Tap to toggle; you can select multiple stalls.</div>
       </div>
       <label style="width:260px">Time
         <select id="timeSelect"></select>
@@ -86,10 +96,28 @@
       <div class="card">
         <strong>Your details</strong>
         <div class="grid2" style="margin-top:8px">
-          <div><label class="req">First name<input id="firstName" autocomplete="given-name"/></label></div>
-          <div><label class="req">Last name<input id="lastName" autocomplete="family-name"/></label></div>
-          <div><label class="req">Email<input id="email" type="email" autocomplete="email"/></label></div>
-          <div><label class="req">Mobile (for WhatsApp updates)<input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/></label></div>
+          <div>
+            <label class="req">First name
+              <input id="firstName" autocomplete="given-name"/>
+            </label>
+          </div>
+          <div>
+            <label class="req">Last name
+              <input id="lastName" autocomplete="family-name"/>
+            </label>
+          </div>
+          <div>
+            <label class="req">Email
+              <input id="email" type="email" autocomplete="email"/>
+              <div id="emailErr" class="field-error">Enter a valid email address (e.g. name@example.com).</div>
+            </label>
+          </div>
+          <div>
+            <label class="req">Mobile (for WhatsApp updates)
+              <input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/>
+              <div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx / +447xxxxxxxxx).</div>
+            </label>
+          </div>
         </div>
         <div class="grid2" style="margin-top:8px">
           <div><label>Child class
@@ -98,12 +126,13 @@
           <div></div>
         </div>
         <div class="help">We’ll use your mobile number for rota updates on the day.</div>
+        <div id="formBanner" class="banner" style="display:none"></div>
       </div>
 
       <div class="card">
         <strong>Your selected positions</strong>
         <div id="selected"></div>
-        <button id="confirm" class="btn" style="margin-top:8px" disabled>Confirm sign-up</button>
+        <button id="confirm" class="btn" style="margin-top:8px" type="button" disabled>Confirm sign-up</button>
         <div id="msg" class="muted" style="margin-top:6px"></div>
       </div>
 
@@ -121,7 +150,7 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Custom Booked summary order (exact labels)
+  // Booked summary custom order (exact labels)
   const SUMMARY_ORDER = [
     "Y7: Santa's Grotto (Y7)",
     "Y8 Mulled wine, Mince Pies & Hot Drinks (Y8)",
@@ -131,9 +160,10 @@
     "Y12/13 Vintage, Uniform & Bottle Tombola Rota (Y12)"
   ];
 
-  // Fixed class order
+  // Fixed class order (full list)
   const CLASS_ORDER = [
-    "7AB","8RE","8PH","8NAA","8KH",
+    "7KM","7KL","7BU","7AB",
+    "8RE","8PH","8NAA","8KH",
     "9VM","9NA","9AW","9ATB",
     "10OM","10KF","10JT","10GR","10AN",
     "11KAH","11IDC","11EW","11DU","11CJ",
@@ -149,6 +179,7 @@
   function checkGate(){ if(localStorage.getItem('lms_pw_ok')==='1') openApp(); else openGate(); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
+  const yearChips=document.getElementById('yearChips');
   const stallChips=document.getElementById('stallChips');
   const timeSelect=document.getElementById('timeSelect');
   const openAll=document.getElementById('openAll');
@@ -165,27 +196,78 @@
   const lastName=document.getElementById('lastName');
   const email=document.getElementById('email');
   const mobile=document.getElementById('mobile');
+  const emailErr=document.getElementById('emailErr');
+  const mobileErr=document.getElementById('mobileErr');
+  const formBanner=document.getElementById('formBanner');
 
-  let meta={stalls:[],times:[],classes:[]};
-  let current={stalls:new Set(), time:'', open:false};
-  let groups=[];
+  let meta={ stalls_meta:[], stalls:[], times:[], classes:[] };
+  let current={ years:new Set(), stalls:new Set(), time:'', open:false };
+  let groups=[]; // grouped from server
   // selection: Map group_id -> { urn, label }
   const selection=new Map();
 
-  function qs(name){ return new URLSearchParams(location.search).get(name); }
   function showDebug(msg){ debugEl.textContent = msg||''; if(msg) console.log('[DEBUG]', msg); }
-
   async function fetchJSON(url){
     const res=await fetch(url,{credentials:'omit'});
-    return await res.json();
+    const txt = await res.text();
+    try { return JSON.parse(txt); }
+    catch (e) { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
   }
+
+  // Validation helpers
+  function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim()); }
+  function isValidUKMobile(v){
+    const s=String(v||'').trim().replace(/\s+/g,'');
+    return /^07\d{9}$/.test(s)||/^\+447\d{9}$/.test(s)||/^00447\d{9}$/.test(s);
+  }
+  function setValidity(input, ok, errNode){
+    input.classList.toggle('invalid', !ok);
+    errNode && errNode.classList.toggle('show', !ok);
+  }
+  function validateEmailField(){ const ok=isValidEmail(email.value); setValidity(email, ok, emailErr); return ok; }
+  function validateMobileField(){ const ok=isValidUKMobile(mobile.value); setValidity(mobile, ok, mobileErr); return ok; }
+  function validateForm(){
+    const okFirst = !!firstName.value.trim();
+    const okLast = !!lastName.value.trim();
+    setValidity(firstName, okFirst);
+    setValidity(lastName, okLast);
+    const okE = validateEmailField();
+    const okM = validateMobileField();
+    return okFirst && okLast && okE && okM;
+  }
+
+  // Blur-time validation for desktop clarity
+  email.addEventListener('blur', validateEmailField);
+  mobile.addEventListener('blur', validateMobileField);
+  firstName.addEventListener('blur', ()=>setValidity(firstName, !!firstName.value.trim()));
+  lastName.addEventListener('blur', ()=>setValidity(lastName, !!lastName.value.trim()));
+
+  function updateConfirmState(){
+    const okForm = validateForm();
+    const okSel = selection.size>0;
+    confirmBtn.disabled = !(okForm && okSel);
+  }
+  document.addEventListener('input', updateConfirmState);
 
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
     meta=data;
 
-    // Stalls chips (multi-select)
+    // Year chips from stalls_meta
+    const years = [...new Set((meta.stalls_meta||[]).map(s => String(s.year_group_owner)).filter(Boolean))]
+      .sort((a,b)=>Number(a)-Number(b));
+    const yearLabels = years.map(y => y==='12' ? '12/13' : `Y${y}`);
+    yearChips.innerHTML = years.map((y,i)=>`<span class="chip" data-year="${y}">${yearLabels[i]}</span>`).join('');
+    yearChips.addEventListener('click',(e)=>{
+      const chip=e.target.closest('.chip'); if(!chip) return;
+      const y=chip.dataset.year;
+      if(current.years.has(y)){ current.years.delete(y); chip.classList.remove('active'); }
+      else { current.years.add(y); chip.classList.add('active'); }
+      loadGroups();
+    });
+
+    // Stalls chips (optional)
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
@@ -195,10 +277,9 @@
       loadGroups();
     });
 
-    // Time dropdown (server-ordered, includes "Stall Lead")
+    // Time dropdown
     const times=data.times||[];
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
-    const tQS=qs('time'); if(tQS){ timeSelect.value=tQS; current.time=tQS; }
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
     // Child class dropdown — fixed order
@@ -209,13 +290,19 @@
     document.getElementById('loading').style.display='block';
     const params=new URLSearchParams();
     params.set('action','slots');
-    if(current.stalls.size) params.set('stall', Array.from(current.stalls).join('|')); // use pipe-safe delimiter
+    if(current.stalls.size) params.set('stall', Array.from(current.stalls).join('|'));
     if(current.time) params.set('time', current.time);
     if(current.open) params.set('open','1');
 
     const data=await fetchJSON(`${API_BASE}?${params.toString()}`);
-    if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); return; }
-    groups=data.data||[];
+    if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); document.getElementById('loading').style.display='none'; return; }
+    let serverGroups=data.data||[];
+
+    // Year filter (none -> all)
+    if(current.years.size){
+      serverGroups = serverGroups.filter(g => current.years.has(String(g.year_group_owner)));
+    }
+    groups=serverGroups;
     render();
     document.getElementById('loading').style.display='none';
   }
@@ -224,8 +311,6 @@
     const data=await fetchJSON(`${API_BASE}?action=summary`);
     if(!data.ok){ showDebug('Summary error: ' + (data.error||'unknown')); return; }
     const sum=data.data||[];
-
-    // Compose labels "<Stall> (Y<year>)" then apply custom order
     const items=sum.map(s=>({ label:`${s.stall} (Y${s.year_group_owner})`, booked:s.booked, capacity:s.capacity, pct:s.pct }));
     const orderMap=new Map(SUMMARY_ORDER.map((lab,i)=>[lab,i]));
     items.sort((a,b)=>{
@@ -233,7 +318,6 @@
       const ib=orderMap.has(b.label)?orderMap.get(b.label):999 + b.label.localeCompare(a.label);
       return ia-ib;
     });
-
     const el=document.getElementById('summary');
     el.innerHTML=items.map(s=>{
       const pct=Math.round((s.pct||0)*100);
@@ -244,7 +328,6 @@
   }
 
   function render(){
-    // Group by time header
     const byTime=new Map();
     for(const g of groups){ if(!byTime.has(g.time)) byTime.set(g.time, []); byTime.get(g.time).push(g); }
 
@@ -288,37 +371,41 @@
 
     // Selected list
     const items=[...selection.values()];
-    selectedEl.innerHTML = items.length
+    document.getElementById('selected').innerHTML = items.length
       ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
       : '<div class="muted">No positions selected yet.</div>';
 
     updateConfirmState();
   }
 
-  function isValidEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
-  function isValidUKMobile(m){ const s=String(m||'').trim().replace(/\s+/g,''); return /^07\d{9}$/.test(s)||/^\+447\d{9}$/.test(s)||/^00447\d{9}$/.test(s); }
-
-  function updateConfirmState(){
-    const okForm = firstName.value && lastName.value && isValidEmail(email.value) && isValidUKMobile(mobile.value);
-    const okSel = selection.size>0;
-    confirmBtn.disabled = !(okForm && okSel);
-  }
-
-  document.addEventListener('input', updateConfirmState);
   openAll.addEventListener('change', ()=>{ current.open=openAll.checked; loadGroups(); });
 
-  // --- Submit (URL-encoded to avoid CORS preflight) ---
-  confirmBtn.addEventListener('click', async ()=>{
+  // Submit (shows banner for any problem; always re-enables button)
+  document.getElementById('confirm').addEventListener('click', async ()=>{
+    formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
-    if(confirmBtn.disabled){
-      msgEl.innerHTML = `<span class="error">Please complete your details and select at least one position.</span>`;
+
+    const ok = validateForm();
+    const haveSel = selection.size>0;
+    if(!ok || !haveSel){
+      if(!haveSel){
+        formBanner.textContent = 'Please select at least one position.';
+      }else{
+        formBanner.textContent = 'Please correct the highlighted fields.';
+      }
+      formBanner.style.display='block';
+      const firstBad = document.querySelector('.invalid');
+      if(firstBad) firstBad.focus({preventScroll:false});
+      updateConfirmState();
       return;
     }
-    const original=confirmBtn.textContent;
-    confirmBtn.textContent='Submitting…'; confirmBtn.disabled=true; msgEl.textContent='';
+
+    const original=this.textContent;
+    this.textContent='Submitting…';
+    this.disabled=true;
+    document.getElementById('msg').textContent='';
 
     const form = new URLSearchParams({
-      action:'signup',
       first_name:firstName.value.trim(),
       last_name:lastName.value.trim(),
       email:email.value.trim(),
@@ -328,27 +415,38 @@
     });
 
     try{
-      const res = await fetch(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body:form.toString() });
-      const data = await res.json();
+      const res = await fetch(API_BASE, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: form.toString(),
+        redirect: 'follow'
+      });
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); }
+      catch { data = { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${raw.slice(0,200)}` }; }
+
       if(!data.ok){
-        msgEl.innerHTML = `<span class="error">${data.error || 'There was an error'}</span>`;
+        formBanner.textContent = data.error || 'There was an error';
+        formBanner.style.display='block';
       }else{
-        msgEl.textContent='Thanks! You’re in. We’ve updated totals.';
+        document.getElementById('msg').textContent='Thanks! You’re in. We’ve updated totals.';
         selection.clear();
         await Promise.all([loadGroups(), loadSummary()]);
       }
     }catch(err){
-      msgEl.innerHTML = `<span class="error">${String(err)}</span>`;
+      formBanner.textContent = String(err);
+      formBanner.style.display='block';
     }finally{
-      confirmBtn.textContent=original;
+      this.textContent=original;
       updateConfirmState();
     }
   });
 
   // Boot after password check
   (async function(){
-    checkGate();
-    if(localStorage.getItem('lms_pw_ok')!=='1') return;
+    if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
+    openApp();
     await loadMeta();
     await loadSummary();
     await loadGroups();
@@ -356,3 +454,4 @@
 </script>
 </body>
 </html>
+
