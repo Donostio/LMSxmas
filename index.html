@@ -41,20 +41,16 @@
   .btn.selected{ background:#1f7cc7; }
   .btn.wait{ background:var(--accent-wait); opacity:.85; }
   .loading{ padding:16px; color:#334155; font-weight:600; }
-  /* Field-level validation */
   .invalid{ border-color: var(--danger) !important; background:#fff5f5 !important; }
   .field-error{ display:none; font-size:12px; color:var(--danger); margin-top:4px; }
   .field-error.show{ display:block; }
-  /* Banner message */
   .banner{ margin-top:8px; padding:8px 10px; border-radius:10px; background:#fff5f5; border:1px solid #ffd6d6; color:#9b1c1c; }
-  /* Password gate */
   .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   .desc{ white-space:pre-wrap; }
 </style>
 </head>
 <body>
-<!-- Password gate -->
 <div id="gate" class="gate" style="display:none">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -71,7 +67,6 @@
     <div class="muted">Filter by year/time • Pick positions • See remaining places live</div>
   </div>
 
-  <!-- FILTER BOX (chips left, description right) -->
   <div class="card" style="margin-top:12px">
     <div class="filters">
       <div class="left">
@@ -87,7 +82,6 @@
 
   <div class="row" style="margin-top:12px">
     <div>
-      <!-- MOVED TOOLBAR -->
       <div class="toolbar">
         <div class="muted"><strong>Available positions</strong> <span id="foundCount"></span></div>
         <div class="right">
@@ -222,9 +216,9 @@
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[] };
   let current={ stall:'', time:'', open:false }; // single-select stall
   let groups=[]; // grouped from server
-  const selection=new Map(); // Map group_id -> { urn, label }
+  const selection=new Map(); // <— single declaration (fixed)
 
-  function showDebug(msg){ debugEl.textContent = msg||''; if(msg) console.log('[DEBUG]', msg); }
+  function showDebug(msg){ if(debugEl) debugEl.textContent = msg||''; if(msg) console.log('[DEBUG]', msg); }
   async function fetchJSON(url){
     const res=await fetch(url,{credentials:'omit'});
     const txt = await res.text();
@@ -239,8 +233,9 @@
     return /^07\d{9}$/.test(s)||/^\+447\d{9}$/.test(s)||/^00447\d{9}$/.test(s);
   }
   function setValidity(input, ok, errNode){
+    if(!input) return;
     input.classList.toggle('invalid', !ok);
-    errNode && errNode.classList.toggle('show', !ok);
+    if(errNode) errNode.classList.toggle('show', !ok);
   }
   function validateEmailField(){ const ok=isValidEmail(email.value); setValidity(email, ok, emailErr); return ok; }
   function validateMobileField(){ const ok=isValidUKMobile(mobile.value); setValidity(mobile, ok, mobileErr); return ok; }
@@ -268,18 +263,16 @@
     confirmBtn.disabled = !(okForm && okSel);
   }
 
-  // --- Description lookup helpers (handle 7 .. 12-13) ---
+  // Description index by stall and by year key (e.g., "7", "8", "12-13")
   function normYearStr(s){
     if(!s) return '';
     s = String(s).trim();
-    if (/^\d{1,2}$/.test(s)) return s;           // "7","8","12"
-    if (/^\d{1,2}\s*[-/]\s*\d{1,2}$/.test(s)) return s.replace(/\s+/g,''); // "12-13" or "12/13"
-    // Try to extract first number (e.g., "Y7", "Year 7")
-    const m = s.match(/(\d{1,2})/);
-    return m? m[1] : s;
+    if (/^\d{1,2}$/.test(s)) return s;
+    if (/^\d{1,2}\s*[-/]\s*\d{1,2}$/.test(s)) return s.replace(/\s+/g,'');
+    const m = s.match(/(\d{1,2})(?:\s*[-/]\s*(\d{1,2}))?/);
+    return m ? (m[2] ? `${m[1]}-${m[2]}` : m[1]) : s;
   }
   function yearMatches(yearOwner, key){
-    // yearOwner like "7","8","12"; key like "7","8","12-13"
     const y = String(yearOwner||'').trim();
     const k = String(key||'').trim().replace(/\s+/g,'');
     if (k.includes('-') || k.includes('/')){
@@ -288,37 +281,30 @@
     }
     return y === k;
   }
-
   function buildDescriptionIndex(stalls_meta){
-    const byStall = new Map(); // stall -> description
-    const byYear  = new Map(); // key ("7","8","12-13") -> description
+    const byStall = new Map();
+    const byYear  = new Map();
     for (const row of (stalls_meta||[])){
       const stall = row.stall || '';
       const desc  = row.description || '';
-      const ysRaw = row.year_stall || row.year_group_owner || '';
-      // If first column now holds "7","8","12-13", capture as byYear
-      const key = normYearStr(ysRaw);
+      // first column changed to year groups (e.g., "7","8","12-13")
+      const key = normYearStr(row.year_stall || row.year_group_owner || row['Year-Stall']);
       if (key && desc) byYear.set(key, desc);
       if (stall && desc) byStall.set(stall, desc);
     }
     return { byStall, byYear };
   }
-
   function lookupDescriptionForSelectedStall(index){
     if (!current.stall) return '';
-    // Prefer a direct stall description
     if (index.byStall.has(current.stall)) return index.byStall.get(current.stall);
-    // Otherwise, find the year for the selected stall…
     const row = (meta.stalls_meta||[]).find(x => x.stall === current.stall);
-    const stallYear = normYearStr(row && (row.year_group_owner || row.year_stall));
+    const stallYear = normYearStr(row && (row.year_group_owner || row.year_stall || row['Year-Stall']));
     if (!stallYear) return '';
-    // …and match against byYear, including "12-13" style keys
     for (const [key, text] of index.byYear.entries()){
       if (yearMatches(stallYear, key)) return text;
     }
     return '';
   }
-
   let descIndex = { byStall:new Map(), byYear:new Map() };
 
   function renderStallDesc(){
@@ -335,23 +321,17 @@
     if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
     meta=data;
 
-    // Build description indices (supports new "year-group" key format)
     descIndex = buildDescriptionIndex(meta.stalls_meta);
 
-    // Single-select chips (year-group stalls)
+    // single-select chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
       const s=chip.dataset.stall;
       const wasActive = chip.classList.contains('active');
-      // clear all
       stallChips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      if (wasActive) {
-        current.stall = '';
-      } else {
-        chip.classList.add('active');
-        current.stall = s;
-      }
+      if (wasActive) { current.stall = ''; }
+      else { chip.classList.add('active'); current.stall = s; }
       renderStallDesc();
       loadGroups();
     });
@@ -361,19 +341,15 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // Class dropdown — fixed order (MANDATORY)
-    childClass.innerHTML = `<option value="">— Select class —</option>` + ([
-      "7KM","7KL","7BU","7AB","8RE","8PH","8NAA","8KH","9VM","9NA","9AW","9ATB",
-      "10OM","10KF","10JT","10GR","10AN","11KAH","11IDC","11EW","11DU","11CJ",
-      "12/13SSS","12/13RC","12/13NB","12/13LVE","12/13LN","12/13JD","12/13ID","12/13EDW","12/13AR","12/13ALB"
-    ]).map(c=>`<option value="${c}">${c}</option>`).join('');
+    // Class dropdown — mandatory
+    childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_ORDER.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+    renderStallDesc();
   }
 
-  let groups=[];
-  const selection=new Map();
-
   async function loadGroups(){
-    document.getElementById('loading').style.display='block';
+    const loadingNode = document.getElementById('loading');
+    if (loadingNode) loadingNode.style.display='block';
     const params=new URLSearchParams();
     params.set('action','slots');
     if(current.stall) params.set('stall', current.stall);
@@ -381,10 +357,10 @@
     if(current.open) params.set('open','1');
 
     const data=await fetchJSON(`${API_BASE}?${params.toString()}`);
-    if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); document.getElementById('loading').style.display='none'; return; }
+    if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); if(loadingNode) loadingNode.style.display='none'; return; }
     groups=data.data||[];
     render();
-    document.getElementById('loading').style.display='none';
+    if (loadingNode) loadingNode.style.display='none';
   }
 
   async function loadSummary(){
@@ -410,7 +386,6 @@
   function render(){
     foundCount.textContent = groups.length ? `— ${groups.length} roles` : '';
 
-    // Group by time header
     const byTime=new Map();
     for(const g of groups){ if(!byTime.has(g.time)) byTime.set(g.time, []); byTime.get(g.time).push(g); }
 
@@ -433,14 +408,15 @@
         </div>`;
       });
     }
-    const loadingNode=document.getElementById('loading');
-    document.getElementById('slots').innerHTML = (loadingNode? loadingNode.outerHTML : '') + html;
+    const target=document.getElementById('slots');
+    const firstLoading = document.getElementById('loading');
+    if(target){ target.innerHTML = (firstLoading? firstLoading.outerHTML : '') + html; }
 
-    // Wire toggles
     document.querySelectorAll('.slot').forEach(card=>{
       const id=card.dataset.id;
       const g=groups.find(x=>x.group_id===id);
       const btn=card.querySelector('button');
+      if(!btn || !g) return;
       btn.addEventListener('click', ()=>{
         if(selection.has(id)){ selection.delete(id); }
         else if(g.remaining>0){
@@ -451,19 +427,18 @@
       });
     });
 
-    // Selected list
     const items=[...selection.values()];
-    selectedEl.innerHTML = items.length
-      ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
-      : '<div class="muted">No positions selected yet.</div>';
+    if(selectedEl){
+      selectedEl.innerHTML = items.length
+        ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
+        : '<div class="muted">No positions selected yet.</div>';
+    }
 
     updateConfirmState();
   }
 
-  // "Show booked roles too"
   document.getElementById('openAll').addEventListener('change', (e)=>{ current.open=e.target.checked; loadGroups(); });
 
-  // Submit
   document.getElementById('confirm').addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -489,7 +464,6 @@
       return;
     }
 
-    // Please wait visual
     const original=confirmBtn.textContent;
     confirmBtn.textContent='Please wait…';
     confirmBtn.classList.add('wait');
@@ -539,7 +513,6 @@
     }
   });
 
-  // Boot
   (async function(){
     if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
     openApp();
