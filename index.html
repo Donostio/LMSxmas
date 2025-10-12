@@ -14,7 +14,9 @@
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
-  .filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+  .filters{ display:flex; gap:16px; align-items:flex-start; }
+  .filters .left{ flex: 1 1 auto; min-width:260px; }
+  .filters .right{ flex: 1 1 40%; min-width:260px; }
   label{ display:flex; flex-direction:column; gap:6px; font-weight:600; }
   select, input, button, .chip{ font:inherit; }
   select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); transition: border-color .15s, background .15s; }
@@ -23,6 +25,8 @@
   .chip.active{ background:#d1e9ff; }
   .timeHeader{ margin:12px 0 6px; font-weight:700; color:#334155; }
   .slots{ display:flex; flex-direction:column; gap:12px; }
+  .toolbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .toolbar .right{ display:flex; gap:12px; align-items:center; }
   .slot{ display:grid; grid-template-columns: 1fr 220px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; }
   .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; }
   .panel{ display:flex; flex-direction:column; gap:8px; }
@@ -46,6 +50,7 @@
   /* Password gate */
   .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+  .desc{ white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -66,61 +71,72 @@
     <div class="muted">Filter by year/time • Pick positions • See remaining places live</div>
   </div>
 
+  <!-- FILTER BOX (chips left, description right) -->
   <div class="card" style="margin-top:12px">
     <div class="filters">
-      <div style="flex:1 1 420px">
+      <div class="left">
         <div style="font-weight:600; margin-bottom:6px">Please select your year group</div>
         <div class="chips" id="stallChips"></div>
-        <div class="help">Tap to toggle; select one or more year-group stalls (optional).</div>
       </div>
-      <label style="width:260px">Time
-        <select id="timeSelect"></select>
-      </label>
-      <label style="flex-direction:row; align-items:center; gap:10px; font-weight:400; margin-left:auto">
-        <input type="checkbox" id="openAll"/> <span>Show booked groups too</span>
-      </label>
+      <div class="right">
+        <div style="font-weight:600; margin-bottom:6px">About this stall</div>
+        <div id="stallDesc" class="desc muted">Choose a year-group stall to see details here.</div>
+      </div>
     </div>
   </div>
 
   <div class="row" style="margin-top:12px">
     <div>
-      <div class="card" style="margin-bottom:8px"><strong>Available positions</strong> <span class="muted" id="foundCount"></span></div>
+      <!-- MOVED TOOLBAR -->
+      <div class="toolbar">
+        <div class="muted"><strong>Available positions</strong> <span id="foundCount"></span></div>
+        <div class="right">
+          <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
+            <select id="timeSelect"></select>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600">
+            <input type="checkbox" id="openAll"/> <span>Show booked roles too</span>
+          </label>
+        </div>
+      </div>
+
       <div id="slots" class="slots">
         <div id="loading" class="loading">🎅 Ho Ho Ho... Loading helper opportunities</div>
       </div>
     </div>
+
     <div class="panel">
       <div class="card">
-        <strong>Your details</strong>
+        <strong>My details</strong>
         <div class="help" style="margin-top:6px; margin-bottom:6px">
-          Student volunteers: enter the <strong>pupil’s name and class</strong> below. Provide <strong>parent/guardian email and mobile only</strong>.
+          Student volunteers: name and class but <em>parent/guardian email and mobile only</em>.
         </div>
         <div class="grid2" style="margin-top:4px">
           <div>
-            <label class="req">Pupil first name
+            <label class="req">First name
               <input id="firstName" autocomplete="given-name"/>
             </label>
           </div>
           <div>
-            <label class="req">Pupil last name
+            <label class="req">Last name
               <input id="lastName" autocomplete="family-name"/>
             </label>
           </div>
           <div>
-            <label class="req">Parent/guardian email
+            <label class="req">Email
               <input id="email" type="email" autocomplete="email"/>
-              <div id="emailErr" class="field-error">Enter a valid email address (e.g. name@example.com).</div>
+              <div id="emailErr" class="field-error">Enter a valid email address.</div>
             </label>
           </div>
           <div>
-            <label class="req">Parent/guardian mobile (WhatsApp updates)
+            <label class="req">Mobile (for WhatsApp communications)
               <input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/>
-              <div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx / +447xxxxxxxxx).</div>
+              <div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx)</div>
             </label>
           </div>
         </div>
         <div class="grid2" style="margin-top:8px">
-          <div><label>Pupil class
+          <div><label>Class
             <select id="childClass"></select>
           </label></div>
           <div></div>
@@ -180,6 +196,8 @@
   const timeSelect=document.getElementById('timeSelect');
   const openAll=document.getElementById('openAll');
 
+  const stallDesc=document.getElementById('stallDesc');
+
   const slotsEl=document.getElementById('slots');
   const foundCount=document.getElementById('foundCount');
   const selectedEl=document.getElementById('selected');
@@ -197,10 +215,9 @@
   const formBanner=document.getElementById('formBanner');
 
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[] };
-  let current={ stalls:new Set(), time:'', open:false };
+  let current={ stall:'', time:'', open:false }; // single-select stall
   let groups=[]; // grouped from server
-  // selection: Map group_id -> { urn, label }
-  const selection=new Map();
+  const selection=new Map(); // Map group_id -> { urn, label }
 
   function showDebug(msg){ debugEl.textContent = msg||''; if(msg) console.log('[DEBUG]', msg); }
   async function fetchJSON(url){
@@ -231,32 +248,44 @@
     const okM = validateMobileField();
     return okFirst && okLast && okE && okM;
   }
-
-  // Blur validation
   email.addEventListener('blur', validateEmailField);
   mobile.addEventListener('blur', validateMobileField);
   firstName.addEventListener('blur', ()=>setValidity(firstName, !!firstName.value.trim()));
   lastName.addEventListener('blur', ()=>setValidity(lastName, !!lastName.value.trim()));
+  document.addEventListener('input', updateConfirmState);
 
   function updateConfirmState(){
     const okForm = validateForm();
     const okSel = selection.size>0;
     confirmBtn.disabled = !(okForm && okSel);
   }
-  document.addEventListener('input', updateConfirmState);
+
+  function renderStallDesc(){
+    if(!current.stall){ stallDesc.textContent = 'Choose a year-group stall to see details here.'; return; }
+    const m = (meta.stalls_meta || []).find(x => x.stall === current.stall);
+    stallDesc.textContent = (m && m.description) ? m.description : 'No description yet.';
+  }
 
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
     meta=data;
 
-    // Use stall names as your "Please select your year group" list (multi-select)
+    // Single-select chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
       const s=chip.dataset.stall;
-      if(current.stalls.has(s)){ current.stalls.delete(s); chip.classList.remove('active'); }
-      else { current.stalls.add(s); chip.classList.add('active'); }
+      const wasActive = chip.classList.contains('active');
+      // clear all
+      stallChips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      if (wasActive) {
+        current.stall = '';
+      } else {
+        chip.classList.add('active');
+        current.stall = s;
+      }
+      renderStallDesc();
       loadGroups();
     });
 
@@ -265,19 +294,21 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // Pupil class dropdown — fixed order
+    // Class dropdown — fixed order
     childClass.innerHTML = `<option value="">—</option>` + ([
       "7KM","7KL","7BU","7AB","8RE","8PH","8NAA","8KH","9VM","9NA","9AW","9ATB",
       "10OM","10KF","10JT","10GR","10AN","11KAH","11IDC","11EW","11DU","11CJ",
       "12/13SSS","12/13RC","12/13NB","12/13LVE","12/13LN","12/13JD","12/13ID","12/13EDW","12/13AR","12/13ALB"
     ]).map(c=>`<option value="${c}">${c}</option>`).join('');
+
+    renderStallDesc();
   }
 
   async function loadGroups(){
     document.getElementById('loading').style.display='block';
     const params=new URLSearchParams();
     params.set('action','slots');
-    if(current.stalls.size) params.set('stall', Array.from(current.stalls).join('|')); // safe delimiter
+    if(current.stall) params.set('stall', current.stall); // single filter (no delimiter issues)
     if(current.time) params.set('time', current.time);
     if(current.open) params.set('open','1');
 
@@ -309,10 +340,13 @@
   }
 
   function render(){
+    // count label as "roles"
+    foundCount.textContent = groups.length ? `— ${groups.length} roles` : '';
+
+    // Group by time header
     const byTime=new Map();
     for(const g of groups){ if(!byTime.has(g.time)) byTime.set(g.time, []); byTime.get(g.time).push(g); }
 
-    foundCount.textContent = groups.length ? `— ${groups.length} groups` : '';
     let html='';
     for(const [time, gg] of byTime.entries()){
       html += `<div class="timeHeader">${time||''}</div>`;
@@ -333,10 +367,10 @@
       });
     }
     const loadingNode=document.getElementById('loading');
-    slotsEl.innerHTML = (loadingNode? loadingNode.outerHTML : '') + html;
+    document.getElementById('slots').innerHTML = (loadingNode? loadingNode.outerHTML : '') + html;
 
     // Wire toggles
-    slotsEl.querySelectorAll('.slot').forEach(card=>{
+    document.querySelectorAll('.slot').forEach(card=>{
       const id=card.dataset.id;
       const g=groups.find(x=>x.group_id===id);
       const btn=card.querySelector('button');
@@ -359,14 +393,14 @@
     updateConfirmState();
   }
 
-  openAll.addEventListener('change', ()=>{ current.open=openAll.checked; loadGroups(); });
+  // "Show booked roles too"
+  document.getElementById('openAll').addEventListener('change', (e)=>{ current.open=e.target.checked; loadGroups(); });
 
   // Submit
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
 
-    // Validate
     const ok = (()=>{
       const okFirst = !!firstName.value.trim(); const okLast = !!lastName.value.trim();
       const okE = isValidEmail(email.value); const okM = isValidUKMobile(mobile.value);
@@ -447,3 +481,4 @@
 </script>
 </body>
 </html>
+
