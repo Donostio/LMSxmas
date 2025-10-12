@@ -92,37 +92,39 @@
     <div class="panel">
       <div class="card">
         <strong>Your details</strong>
-        <div class="grid2" style="margin-top:8px">
+        <div class="help" style="margin-top:6px; margin-bottom:6px">
+          Student volunteers: enter the <strong>pupil’s name and class</strong> below. Provide <strong>parent/guardian email and mobile only</strong>.
+        </div>
+        <div class="grid2" style="margin-top:4px">
           <div>
-            <label class="req">First name
+            <label class="req">Pupil first name
               <input id="firstName" autocomplete="given-name"/>
             </label>
           </div>
           <div>
-            <label class="req">Last name
+            <label class="req">Pupil last name
               <input id="lastName" autocomplete="family-name"/>
             </label>
           </div>
           <div>
-            <label class="req">Email
+            <label class="req">Parent/guardian email
               <input id="email" type="email" autocomplete="email"/>
               <div id="emailErr" class="field-error">Enter a valid email address (e.g. name@example.com).</div>
             </label>
           </div>
           <div>
-            <label class="req">Mobile (for WhatsApp updates)
+            <label class="req">Parent/guardian mobile (WhatsApp updates)
               <input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/>
               <div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx / +447xxxxxxxxx).</div>
             </label>
           </div>
         </div>
         <div class="grid2" style="margin-top:8px">
-          <div><label>Child class
+          <div><label>Pupil class
             <select id="childClass"></select>
           </label></div>
           <div></div>
         </div>
-        <div class="help">We’ll use your mobile number for rota updates on the day.</div>
         <div id="formBanner" class="banner" style="display:none"></div>
       </div>
 
@@ -263,7 +265,7 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // Child class dropdown — fixed order
+    // Pupil class dropdown — fixed order
     childClass.innerHTML = `<option value="">—</option>` + ([
       "7KM","7KL","7BU","7AB","8RE","8PH","8NAA","8KH","9VM","9NA","9AW","9ATB",
       "10OM","10KF","10JT","10GR","10AN","11KAH","11IDC","11EW","11DU","11CJ",
@@ -368,7 +370,6 @@
     const ok = (()=>{
       const okFirst = !!firstName.value.trim(); const okLast = !!lastName.value.trim();
       const okE = isValidEmail(email.value); const okM = isValidUKMobile(mobile.value);
-      // paint
       firstName.classList.toggle('invalid', !okFirst);
       lastName.classList.toggle('invalid', !okLast);
       email.classList.toggle('invalid', !okE); emailErr.classList.toggle('show', !okE);
@@ -414,7 +415,6 @@
       catch { data = { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${raw.slice(0,200)}` }; }
 
       if(!data.ok){
-        // Friendly message for race condition
         const err = String(data.error||'');
         const nice = /Some positions are no longer available/i.test(err)
           ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
@@ -422,7 +422,7 @@
         formBanner.textContent = nice;
         formBanner.style.display='block';
       }else{
-        msgEl.textContent='Thank you! Please make a note of your kind offer. Your class rep will be in touch!';
+        msgEl.textContent='Thank you! Please make a note of your choice. Your class rep will be in touch.';
         selection.clear();
         await Promise.all([loadGroups(), loadSummary()]);
       }
@@ -447,5 +447,3 @@
 </script>
 </body>
 </html>
-
-
