@@ -7,8 +7,8 @@
 <style>
   :root{
     --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d;
-    --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e74c3c; --badge:#f5f7fa;
-    --primary:#e53935; /* big red button */
+    --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e03131; --badge:#f5f7fa;
+    --primary:#e53935; /* big red Confirm button */
   }
   *{ box-sizing:border-box; }
   body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
@@ -35,11 +35,11 @@
   .slots{ display:flex; flex-direction:column; gap:12px; min-height:60px; }
   .toolbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; }
   .toolbar .right{ display:flex; gap:12px; align-items:center; }
-  .slot{ display:grid; grid-template-columns: 1fr 220px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; width:100%; }
+  .slot{ display:grid; grid-template-columns: 1fr 300px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; width:100%; }
   @media(max-width: 640px){
     .slot{ grid-template-columns: 1fr; }
   }
-  .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; }
+  .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; white-space:nowrap; }
   .panel{ display:flex; flex-direction:column; gap:8px; }
   .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
   .bar{ height:100%; background:var(--good); width:0%; }
@@ -53,16 +53,17 @@
   .btn.selected{ background:#1f7cc7; }
   .btn.wait{ background:var(--accent-wait); opacity:.85; }
   .btn-primary{ background:var(--primary); font-weight:700; padding:14px 18px; font-size:18px; border-radius:14px; }
-  .loading{ padding:16px; color:#334155; font-weight:600; }
+  .loading{ padding:16px; font-weight:800; color:var(--danger); }
+  .mega{ font-size: 1.8rem; }            /* base loader size ~ 3x */
+  .mega .santa{ font-size: 2.4rem; }     /* Santa part ~ 4x */
   .invalid{ border-color: var(--danger) !important; background:#fff5f5 !important; }
   .field-error{ display:none; font-size:12px; color:#e03131; margin-top:4px; }
   .field-error.show{ display:block; }
   .banner{ margin-top:8px; padding:8px 10px; border-radius:10px; background:#fff5f5; border:1px solid #ffd6d6; color:#9b1c1c; }
   .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
-  .desc{ white-space:pre-wrap; color:var(--text); } /* black text */
+  .desc{ white-space:pre-wrap; color:#111; } /* black description text */
   .linkbtn{ background:none; border:none; color:#1877c9; text-decoration:underline; cursor:pointer; padding:0; margin-top:8px; font:inherit; }
-  /* Global loader sits under the page title so it shows ASAP */
   #globalLoading{ margin-top:12px; }
 </style>
 </head>
@@ -81,13 +82,15 @@
 <div class="wrap" id="app" style="display:none">
   <div class="card">
     <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-    <div class="muted">Filter by year/time • Pick positions • See remaining places live</div>
+    <div class="muted">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
   </div>
 
-  <!-- Global loader (appears BEFORE filters/slots) -->
-  <div id="globalLoading" class="loading">🎅 Ho Ho Ho-ld on while volunteer opportunities load!</div>
+  <!-- Global loader (appears ASAP; stays until cards render) -->
+  <div id="globalLoading" class="loading mega">
+    <span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!
+  </div>
 
-  <!-- Filter box -->
+  <!-- Filters -->
   <div class="card" id="filtersCard" style="margin-top:12px; display:none">
     <div class="filters">
       <div class="left">
@@ -106,25 +109,27 @@
     <div>
       <!-- Toolbar ABOVE role cards -->
       <div class="toolbar" id="toolbar" style="display:none">
-        <div class="muted"><strong>Available positions</strong> <span id="foundCount"></span></div>
+        <div class="muted"><strong id="needFill">We need to fill 0 more slots!</strong></div>
         <div class="right">
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
             <select id="timeSelect"></select>
           </label>
           <label style="display:flex; align-items:center; gap:8px; font-weight:600">
-            <input type="checkbox" id="openAll"/> <span>Show booked roles too</span>
+            <input type="checkbox" id="openAll"/> <span>Show filled slots too</span>
           </label>
         </div>
       </div>
 
       <div id="slots" class="slots"></div>
-      <div id="slotsLoading" class="loading" style="display:none">🎅 Ho Ho Ho-ld on while volunteer opportunities load!</div>
+      <div id="slotsLoading" class="loading mega" style="display:none">
+        <span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!
+      </div>
     </div>
 
     <div class="panel">
       <div class="card">
         <strong>My details</strong>
-        <div class="help" style="margin-top:6px; margin-bottom:6px">
+        <div class="help" style="margin-top:6px; margin-bottom:6px; color:#e03131">
           Student volunteers: name and class but <em>parent/guardian email and mobile only</em>.
         </div>
         <div class="grid2" style="margin-top:4px">
@@ -185,24 +190,15 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Desired time order for headings (front-end enforcement)
+  // Time order (front-end enforced; puts Baking right after Stall Lead)
   const TIME_ORDER = [
-    'Stall Lead',
-    'Baking',
+    'Stall Lead', 'Baking',
     'FRIDAY Anytime between 1pm - 6pm',
-    '10.00am -12.00pm',
-    '11:00 - 12:00pm',
-    '11.00am -3:00pm',
-    '12:00pm - 1:00pm',
-    '12.00am - 2.00pm',
-    '1:00pm - 2:00pm',
-    '2:00pm - 3:00pm',
-    '2.00pm - 4.00pm'
+    '10.00am -12.00pm', '11:00 - 12:00pm', '11.00am -3:00pm',
+    '12:00pm - 1:00pm', '12.00am - 2.00pm', '1:00pm - 2:00pm',
+    '2:00pm - 3:00pm', '2.00pm - 4.00pm'
   ];
-  const timeIndex = t => {
-    const i = TIME_ORDER.indexOf(t||'');
-    return i === -1 ? 999 : i;
-  };
+  const timeIndex = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
   // Elements
   const gate=document.getElementById('gate'), gateInput=document.getElementById('gateInput'),
@@ -221,7 +217,7 @@
 
   const slotsEl=document.getElementById('slots');
   const slotsLoading=document.getElementById('slotsLoading');
-  const foundCount=document.getElementById('foundCount');
+  const needFill=document.getElementById('needFill');
   const selectedEl=document.getElementById('selected');
   const confirmBtn=document.getElementById('confirm');
   const msgEl=document.getElementById('msg');
@@ -240,6 +236,7 @@
 
   // State
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[], descriptionsByStall:{} };
+  let stallIndex=new Map(); // stall -> order
   let current={ stall:'', time:'', open:false };
   let groups=[];
   const selection=new Map();
@@ -250,12 +247,19 @@
   function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  // Utils
-  function showDebug(m){ debugEl.textContent=m||''; if(m) console.log('[DEBUG]', m); }
-  async function fetchJSON(url){
-    const res=await fetch(url,{credentials:'omit'});
-    const txt = await res.text();
-    try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
+  // Utils: fetch with timeout + retry (+cachebuster to avoid stickiness)
+  function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
+  async function fetchJSON(url, opts={}, tries=2){
+    const cacheBust = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
+    const finalUrl = url + cacheBust;
+    try{
+      const res = await Promise.race([fetch(finalUrl, {credentials:'omit', ...opts}), timeout(12000)]);
+      const txt = await res.text();
+      try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
+    }catch(err){
+      if(tries>1) return fetchJSON(url, opts, tries-1);
+      return { ok:false, error:String(err) };
+    }
   }
 
   // Validation
@@ -302,14 +306,16 @@
   }
 
   async function loadMeta(){
-    // show global loader early
-    globalLoading.style.display='block';
+    globalLoading.style.display='block'; // show early & keep until cards render
 
     const data=await fetchJSON(`${API_BASE}?action=meta`);
-    if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
+    if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
     meta=data;
 
-    // Chips (single-select)
+    // stall order map (used for Leads & Co-ordinators sort)
+    stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
+
+    // Chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click', (e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
@@ -325,7 +331,7 @@
       current.stall=''; expandAllChips(); renderStallDesc(); loadGroups();
     });
 
-    // Time dropdown (enforce front-end order incl. Baking)
+    // Time dropdown (enforce order incl. Baking)
     const times=(meta.times||[]).slice().sort((a,b)=> timeIndex(a)-timeIndex(b) || a.localeCompare(b));
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
@@ -342,10 +348,43 @@
     stallDescMap = new Map(Object.entries(meta.descriptionsByStall || {}));
     renderStallDesc();
 
-    // now show filters/toolbar and hide global loader
+    // Show filters/toolbar; keep global loader visible until cards render
     filtersCard.style.display='block';
     toolbar.style.display='flex';
-    globalLoading.style.display='none';
+  }
+
+  // Aggregate co-ordinators (role variants) per stall
+  function aggregateCoordinators(list){
+    const isCoord = r => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(r.role||'');
+    const keep=[], byStall=new Map();
+    for(const g of list){
+      if(!isCoord(g)){ keep.push(g); continue; }
+      const k = g.stall;
+      if(!byStall.has(k)){
+        byStall.set(k, {
+          group_id:`coord|${k}`,
+          stall:g.stall,
+          year_stall:g.stall,
+          role:'Stall co-ordinator',
+          time:g.time,  // keep first seen
+          capacity:0, booked:0, remaining:0, available_urns:[]
+        });
+      }
+      const agg=byStall.get(k);
+      agg.capacity += g.capacity||0;
+      agg.booked   += g.booked||0;
+      agg.remaining+= g.remaining||0;
+      agg.available_urns.push(...(g.available_urns||[]));
+    }
+    return { others:keep, coords:Array.from(byStall.values()) };
+  }
+
+  // Section rank
+  function sectionOf(g){
+    if (g.time==='Stall Lead' || /lead/i.test(g.role||'')) return 0;            // Leads
+    if (/^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'')) return 1;       // (pre-aggregation fallback)
+    if (/bake/i.test(g.role||'') || g.time==='Baking') return 2;                // Bakers
+    return 3;                                                                   // Rest
   }
 
   async function loadGroups(){
@@ -359,17 +398,42 @@
     if(current.open) params.set('open','1');
 
     const data=await fetchJSON(`${API_BASE}?${params.toString()}`);
-    if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); slotsLoading.style.display='none'; return; }
-    // Enforce our time order for headings
-    groups=(data.data||[]).slice().sort((a,b)=> timeIndex(a.time)-timeIndex(b.time) || (a.role||'').localeCompare(b.role||''));
+    if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown')); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
+    let list=(data.data||[]).slice();
 
+    // Aggregate co-ordinators per stall
+    const { others, coords } = aggregateCoordinators(list);
+    list = [...others, ...coords];
+
+    // Sort: Leads (stall order), then Co-ords (stall order), then Bakers (stall order), then Rest by time + stall + role
+    const stallIdx = s => stallIndex.has(s) ? stallIndex.get(s) : 999;
+    list.sort((a,b)=>{
+      const sa=sectionOf(a), sb=sectionOf(b);
+      if(sa!==sb) return sa-sb;
+      if(sa<=2){ // leads/coords/bakers by stall order
+        const d = stallIdx(a.stall) - stallIdx(b.stall);
+        if(d!==0) return d;
+        return (a.role||'').localeCompare(b.role||'');
+      }
+      // rest by time then stall then role
+      const dt = timeIndex(a.time) - timeIndex(b.time);
+      if(dt!==0) return dt;
+      const ds = stallIdx(a.stall) - stallIdx(b.stall);
+      if(ds!==0) return ds;
+      return (a.role||'').localeCompare(b.role||'');
+    });
+
+    groups=list;
     render();
+
+    // hide loaders once cards are rendered
     slotsLoading.style.display='none';
+    globalLoading.style.display='none';
   }
 
   async function loadSummary(){
     const data=await fetchJSON(`${API_BASE}?action=summary`);
-    if(!data.ok){ showDebug('Summary error: ' + (data.error||'unknown')); return; }
+    if(!data.ok){ debugEl.textContent='Summary error: ' + (data.error||'unknown')); return; }
     const sum=data.data||[];
     summaryEl.innerHTML=sum.map(s=>{
       const pct=Math.round((s.pct||0)*100);
@@ -380,31 +444,38 @@
   }
 
   function render(){
-    foundCount.textContent = groups.length ? `— ${groups.length} roles` : '';
+    // Count total URNs not filled (remaining) for the current list
+    const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
+    needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
 
-    // Group by time for headers, preserving our order
-    const times = Array.from(new Set(groups.map(g=>g.time))).sort((a,b)=> timeIndex(a)-timeIndex(b) || a.localeCompare(b));
-
+    // Build one long list but insert time headers when time changes within the "rest" section.
     let html='';
-    for(const t of times){
-      const gg = groups.filter(g=>g.time===t);
-      html += `<div class="timeHeader">${t||''}</div>`;
-      gg.forEach(g=>{
-        const sel=selection.has(g.group_id);
-        const btnText=sel?'Selected':'Select';
-        const canSelect = g.remaining>0 || sel;
-        html += `<div class="slot" data-id="${g.group_id}">
-          <div>
-            <div><strong>${g.role||''}</strong></div>
-            <div class="muted">${g.stall}</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end">
-            <div class="badge"><strong>${sel ? g.remaining-1 : g.remaining}</strong> remaining</div>
-            <button class="btn ${sel?'selected':''}" ${canSelect?'':'disabled'}>${btnText}</button>
-          </div>
-        </div>`;
-      });
-    }
+    let lastTime=null;
+
+    groups.forEach(g=>{
+      const sec = sectionOf(g);
+      // Insert time headers only for section 3 (rest)
+      if(sec===3 && g.time!==lastTime){
+        html += `<div class="timeHeader">${g.time||''}</div>`;
+        lastTime = g.time;
+      }
+      const sel = selection.has(g.group_id);
+      const btnText = sel?'Selected':'Select';
+      const canSelect = g.remaining>0 || sel;
+      const bookedTxt = `<span class="muted" style="margin-right:8px">${g.booked||0} booked</span>`;
+      html += `<div class="slot" data-id="${g.group_id}">
+        <div>
+          <div><strong>${g.role||''}</strong></div>
+          <div class="muted">${g.stall}${g.time && sec!==3 ? ` • ${g.time}`:''}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap">
+          ${bookedTxt}
+          <div class="badge"><strong>${sel ? Math.max(0,(g.remaining||0)-1) : (g.remaining||0)}</strong> remaining</div>
+          <button class="btn ${sel?'selected':''}" ${canSelect?'':'disabled'}>${btnText}</button>
+        </div>
+      </div>`;
+    });
+
     slotsEl.innerHTML = html;
 
     // Wire up selects
@@ -423,6 +494,7 @@
       });
     });
 
+    // Selection list
     const items=[...selection.values()];
     selectedEl.innerHTML = items.length
       ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
@@ -473,17 +545,13 @@
     });
 
     try{
-      const res = await fetch(API_BASE, {
+      const res = await fetchJSON(API_BASE, {
         method:'POST',
         headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
         body: form.toString(),
-        redirect: 'follow'
       });
-      const raw = await res.text();
-      let data; try { data = JSON.parse(raw); } catch { data = { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${raw.slice(0,200)}` }; }
-
-      if(!data.ok){
-        const err = String(data.error||'');
+      if(!res.ok){
+        const err = String(res.error||'');
         const nice = /Some positions are no longer available/i.test(err)
           ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
           : err || 'There was an error';
@@ -508,7 +576,7 @@
     openApp();
     await loadMeta();
     await loadSummary();
-    await loadGroups();
+    await loadGroups(); // global loader hides here after cards render
   })();
 </script>
 </body>
