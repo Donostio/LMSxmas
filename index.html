@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>LMS Christmas Fair — Volunteer sign-up</title>
 <style>
-  :root{ --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d; --accent:#3498db; --good:#2ecc71; --danger:#e74c3c; --badge:#f5f7fa; }
+  :root{ --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d; --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e74c3c; --badge:#f5f7fa; }
   *{ box-sizing:border-box; }
   body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
   .wrap{ max-width:1160px; margin:24px auto; padding:0 16px; }
@@ -33,8 +33,9 @@
   .error{ color:var(--danger); font-weight:600; }
   .help{ font-size:12px; color:var(--muted); }
   .req::after{ content:" *"; color:var(--danger); font-weight:700; }
-  .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; }
+  .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; transition:background .2s, opacity .2s; }
   .btn.selected{ background:#1f7cc7; }
+  .btn.wait{ background:var(--accent-wait); opacity:.85; }
   .loading{ padding:16px; color:#334155; font-weight:600; }
   /* Field-level validation */
   .invalid{ border-color: var(--danger) !important; background:#fff5f5 !important; }
@@ -68,13 +69,9 @@
   <div class="card" style="margin-top:12px">
     <div class="filters">
       <div style="flex:1 1 420px">
-        <div style="font-weight:600; margin-bottom:6px">Year groups</div>
-        <div class="chips" id="yearChips"></div>
-        <div class="help">Tap to toggle; select multiple years or leave empty to see all.</div>
-      </div>
-      <div style="flex:1 1 420px">
-        <div style="font-weight:600; margin-bottom:6px">Stalls (optional)</div>
+        <div style="font-weight:600; margin-bottom:6px">Please select your year group</div>
         <div class="chips" id="stallChips"></div>
+        <div class="help">Tap to toggle; select one or more year-group stalls (optional).</div>
       </div>
       <label style="width:260px">Time
         <select id="timeSelect"></select>
@@ -150,7 +147,6 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Booked summary custom order (exact labels)
   const SUMMARY_ORDER = [
     "Y7: Santa's Grotto (Y7)",
     "Y8 Mulled wine, Mince Pies & Hot Drinks (Y8)",
@@ -160,7 +156,6 @@
     "Y12/13 Vintage, Uniform & Bottle Tombola Rota (Y12)"
   ];
 
-  // Fixed class order (full list)
   const CLASS_ORDER = [
     "7KM","7KL","7BU","7AB",
     "8RE","8PH","8NAA","8KH",
@@ -179,7 +174,6 @@
   function checkGate(){ if(localStorage.getItem('lms_pw_ok')==='1') openApp(); else openGate(); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  const yearChips=document.getElementById('yearChips');
   const stallChips=document.getElementById('stallChips');
   const timeSelect=document.getElementById('timeSelect');
   const openAll=document.getElementById('openAll');
@@ -201,7 +195,7 @@
   const formBanner=document.getElementById('formBanner');
 
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[] };
-  let current={ years:new Set(), stalls:new Set(), time:'', open:false };
+  let current={ stalls:new Set(), time:'', open:false };
   let groups=[]; // grouped from server
   // selection: Map group_id -> { urn, label }
   const selection=new Map();
@@ -236,7 +230,7 @@
     return okFirst && okLast && okE && okM;
   }
 
-  // Blur-time validation for desktop clarity
+  // Blur validation
   email.addEventListener('blur', validateEmailField);
   mobile.addEventListener('blur', validateMobileField);
   firstName.addEventListener('blur', ()=>setValidity(firstName, !!firstName.value.trim()));
@@ -254,20 +248,7 @@
     if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
     meta=data;
 
-    // Year chips from stalls_meta
-    const years = [...new Set((meta.stalls_meta||[]).map(s => String(s.year_group_owner)).filter(Boolean))]
-      .sort((a,b)=>Number(a)-Number(b));
-    const yearLabels = years.map(y => y==='12' ? '12/13' : `Y${y}`);
-    yearChips.innerHTML = years.map((y,i)=>`<span class="chip" data-year="${y}">${yearLabels[i]}</span>`).join('');
-    yearChips.addEventListener('click',(e)=>{
-      const chip=e.target.closest('.chip'); if(!chip) return;
-      const y=chip.dataset.year;
-      if(current.years.has(y)){ current.years.delete(y); chip.classList.remove('active'); }
-      else { current.years.add(y); chip.classList.add('active'); }
-      loadGroups();
-    });
-
-    // Stalls chips (optional)
+    // Use stall names as your "Please select your year group" list (multi-select)
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
@@ -283,26 +264,24 @@
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
     // Child class dropdown — fixed order
-    childClass.innerHTML = `<option value="">—</option>` + CLASS_ORDER.map(c=>`<option value="${c}">${c}</option>`).join('');
+    childClass.innerHTML = `<option value="">—</option>` + ([
+      "7KM","7KL","7BU","7AB","8RE","8PH","8NAA","8KH","9VM","9NA","9AW","9ATB",
+      "10OM","10KF","10JT","10GR","10AN","11KAH","11IDC","11EW","11DU","11CJ",
+      "12/13SSS","12/13RC","12/13NB","12/13LVE","12/13LN","12/13JD","12/13ID","12/13EDW","12/13AR","12/13ALB"
+    ]).map(c=>`<option value="${c}">${c}</option>`).join('');
   }
 
   async function loadGroups(){
     document.getElementById('loading').style.display='block';
     const params=new URLSearchParams();
     params.set('action','slots');
-    if(current.stalls.size) params.set('stall', Array.from(current.stalls).join('|'));
+    if(current.stalls.size) params.set('stall', Array.from(current.stalls).join('|')); // safe delimiter
     if(current.time) params.set('time', current.time);
     if(current.open) params.set('open','1');
 
     const data=await fetchJSON(`${API_BASE}?${params.toString()}`);
     if(!data.ok){ showDebug('Slots error: ' + (data.error||'unknown')); groups=[]; render(); document.getElementById('loading').style.display='none'; return; }
-    let serverGroups=data.data||[];
-
-    // Year filter (none -> all)
-    if(current.years.size){
-      serverGroups = serverGroups.filter(g => current.years.has(String(g.year_group_owner)));
-    }
-    groups=serverGroups;
+    groups=data.data||[];
     render();
     document.getElementById('loading').style.display='none';
   }
@@ -371,7 +350,7 @@
 
     // Selected list
     const items=[...selection.values()];
-    document.getElementById('selected').innerHTML = items.length
+    selectedEl.innerHTML = items.length
       ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
       : '<div class="muted">No positions selected yet.</div>';
 
@@ -380,30 +359,38 @@
 
   openAll.addEventListener('change', ()=>{ current.open=openAll.checked; loadGroups(); });
 
-  // Submit (shows banner for any problem; always re-enables button)
-  document.getElementById('confirm').addEventListener('click', async ()=>{
+  // Submit
+  confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
 
-    const ok = validateForm();
-    const haveSel = selection.size>0;
-    if(!ok || !haveSel){
-      if(!haveSel){
-        formBanner.textContent = 'Please select at least one position.';
-      }else{
-        formBanner.textContent = 'Please correct the highlighted fields.';
-      }
+    // Validate
+    const ok = (()=>{
+      const okFirst = !!firstName.value.trim(); const okLast = !!lastName.value.trim();
+      const okE = isValidEmail(email.value); const okM = isValidUKMobile(mobile.value);
+      // paint
+      firstName.classList.toggle('invalid', !okFirst);
+      lastName.classList.toggle('invalid', !okLast);
+      email.classList.toggle('invalid', !okE); emailErr.classList.toggle('show', !okE);
+      mobile.classList.toggle('invalid', !okM); mobileErr.classList.toggle('show', !okM);
+      return okFirst && okLast && okE && okM;
+    })();
+    if(!ok || selection.size===0){
+      formBanner.textContent = selection.size===0
+        ? 'Please select at least one position.'
+        : 'Please correct the highlighted fields.';
       formBanner.style.display='block';
-      const firstBad = document.querySelector('.invalid');
-      if(firstBad) firstBad.focus({preventScroll:false});
+      (document.querySelector('.invalid')||firstName).focus({preventScroll:false});
       updateConfirmState();
       return;
     }
 
-    const original=this.textContent;
-    this.textContent='Submitting…';
-    this.disabled=true;
-    document.getElementById('msg').textContent='';
+    // Please wait visual
+    const original=confirmBtn.textContent;
+    confirmBtn.textContent='Please wait…';
+    confirmBtn.classList.add('wait');
+    confirmBtn.disabled=true;
+    msgEl.textContent='';
 
     const form = new URLSearchParams({
       first_name:firstName.value.trim(),
@@ -427,10 +414,15 @@
       catch { data = { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${raw.slice(0,200)}` }; }
 
       if(!data.ok){
-        formBanner.textContent = data.error || 'There was an error';
+        // Friendly message for race condition
+        const err = String(data.error||'');
+        const nice = /Some positions are no longer available/i.test(err)
+          ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
+          : err || 'There was an error';
+        formBanner.textContent = nice;
         formBanner.style.display='block';
       }else{
-        document.getElementById('msg').textContent='Thanks! You’re in. We’ve updated totals.';
+        msgEl.textContent='Thank you! Please make a note of your kind offer. Your class rep will be in touch!';
         selection.clear();
         await Promise.all([loadGroups(), loadSummary()]);
       }
@@ -438,12 +430,13 @@
       formBanner.textContent = String(err);
       formBanner.style.display='block';
     }finally{
-      this.textContent=original;
+      confirmBtn.textContent=original;
+      confirmBtn.classList.remove('wait');
       updateConfirmState();
     }
   });
 
-  // Boot after password check
+  // Boot
   (async function(){
     if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
     openApp();
@@ -454,4 +447,5 @@
 </script>
 </body>
 </html>
+
 
