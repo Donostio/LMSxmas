@@ -48,6 +48,7 @@
   .gate{ position:fixed; inset:0; background:rgba(248,249,251,.98); display:flex; align-items:center; justify-content:center; z-index:9999; }
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   .desc{ white-space:pre-wrap; }
+  .linkbtn{ background:none; border:none; color:#1877c9; text-decoration:underline; cursor:pointer; padding:0; margin-top:8px; font:inherit; }
 </style>
 </head>
 <body>
@@ -74,6 +75,7 @@
       <div class="left">
         <div style="font-weight:600; margin-bottom:6px">Please select your year group</div>
         <div class="chips" id="stallChips"></div>
+        <button id="changeYear" class="linkbtn" style="display:none">Change year group</button>
       </div>
       <div class="right">
         <div style="font-weight:600; margin-bottom:6px">About this stall</div>
@@ -171,6 +173,7 @@
         app=document.getElementById('app');
 
   const stallChips=document.getElementById('stallChips');
+  const changeYear=document.getElementById('changeYear');
   const stallDesc=document.getElementById('stallDesc');
   const timeSelect=document.getElementById('timeSelect');
   const openAll=document.getElementById('openAll');
@@ -233,6 +236,23 @@
   lastName.addEventListener('blur', ()=>setValidity(lastName, !!lastName.value.trim()));
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
+  // Collapse/expand chips
+  function collapseTo(stallLabel){
+    stallChips.querySelectorAll('.chip').forEach(c=>{
+      const match = c.dataset.stall === stallLabel;
+      c.style.display = match ? 'inline-block' : 'none';
+      c.classList.toggle('active', match);
+    });
+    changeYear.style.display = 'inline';
+  }
+  function expandAllChips(){
+    stallChips.querySelectorAll('.chip').forEach(c=>{
+      c.style.display = 'inline-block';
+      c.classList.remove('active');
+    });
+    changeYear.style.display = 'none';
+  }
+
   // Descriptions
   function renderStallDesc(){
     if(!current.stall){ stallDesc.textContent='Choose a year-group stall to see details here.'; return; }
@@ -252,10 +272,14 @@
       const chip=e.target.closest('.chip'); if(!chip) return;
       const s=chip.dataset.stall;
       const wasActive = chip.classList.contains('active');
-      stallChips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      if(wasActive){ current.stall=''; } else { chip.classList.add('active'); current.stall=s; }
-      renderStallDesc();
-      loadGroups();
+      if (wasActive){
+        current.stall=''; expandAllChips(); renderStallDesc(); loadGroups();
+      } else {
+        current.stall=s; collapseTo(s); renderStallDesc(); loadGroups();
+      }
+    });
+    changeYear.addEventListener('click', ()=>{
+      current.stall=''; expandAllChips(); renderStallDesc(); loadGroups();
     });
 
     // Time dropdown
