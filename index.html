@@ -136,9 +136,12 @@
           </div>
         </div>
         <div class="grid2" style="margin-top:8px">
-          <div><label>Class
-            <select id="childClass"></select>
-          </label></div>
+          <div>
+            <label class="req">Class
+              <select id="childClass"></select>
+              <div id="classErr" class="field-error">Please choose a class.</div>
+            </label>
+          </div>
           <div></div>
         </div>
         <div id="formBanner" class="banner" style="display:none"></div>
@@ -192,6 +195,7 @@
   function checkGate(){ if(localStorage.getItem('lms_pw_ok')==='1') openApp(); else openGate(); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
+  // Elements
   const stallChips=document.getElementById('stallChips');
   const timeSelect=document.getElementById('timeSelect');
   const openAll=document.getElementById('openAll');
@@ -204,6 +208,7 @@
   const confirmBtn=document.getElementById('confirm');
   const msgEl=document.getElementById('msg');
   const childClass=document.getElementById('childClass');
+  const classErr=document.getElementById('classErr');
   const debugEl=document.getElementById('debug');
 
   const firstName=document.getElementById('firstName');
@@ -239,6 +244,7 @@
   }
   function validateEmailField(){ const ok=isValidEmail(email.value); setValidity(email, ok, emailErr); return ok; }
   function validateMobileField(){ const ok=isValidUKMobile(mobile.value); setValidity(mobile, ok, mobileErr); return ok; }
+  function validateClassField(){ const ok=!!childClass.value; setValidity(childClass, ok, classErr); return ok; }
   function validateForm(){
     const okFirst = !!firstName.value.trim();
     const okLast = !!lastName.value.trim();
@@ -246,10 +252,12 @@
     setValidity(lastName, okLast);
     const okE = validateEmailField();
     const okM = validateMobileField();
-    return okFirst && okLast && okE && okM;
+    const okC = validateClassField();
+    return okFirst && okLast && okE && okM && okC;
   }
   email.addEventListener('blur', validateEmailField);
   mobile.addEventListener('blur', validateMobileField);
+  childClass.addEventListener('blur', validateClassField);
   firstName.addEventListener('blur', ()=>setValidity(firstName, !!firstName.value.trim()));
   lastName.addEventListener('blur', ()=>setValidity(lastName, !!lastName.value.trim()));
   document.addEventListener('input', updateConfirmState);
@@ -260,10 +268,66 @@
     confirmBtn.disabled = !(okForm && okSel);
   }
 
+  // --- Description lookup helpers (handle 7 .. 12-13) ---
+  function normYearStr(s){
+    if(!s) return '';
+    s = String(s).trim();
+    if (/^\d{1,2}$/.test(s)) return s;           // "7","8","12"
+    if (/^\d{1,2}\s*[-/]\s*\d{1,2}$/.test(s)) return s.replace(/\s+/g,''); // "12-13" or "12/13"
+    // Try to extract first number (e.g., "Y7", "Year 7")
+    const m = s.match(/(\d{1,2})/);
+    return m? m[1] : s;
+  }
+  function yearMatches(yearOwner, key){
+    // yearOwner like "7","8","12"; key like "7","8","12-13"
+    const y = String(yearOwner||'').trim();
+    const k = String(key||'').trim().replace(/\s+/g,'');
+    if (k.includes('-') || k.includes('/')){
+      const parts = k.split(/[-/]/);
+      return parts.includes(y);
+    }
+    return y === k;
+  }
+
+  function buildDescriptionIndex(stalls_meta){
+    const byStall = new Map(); // stall -> description
+    const byYear  = new Map(); // key ("7","8","12-13") -> description
+    for (const row of (stalls_meta||[])){
+      const stall = row.stall || '';
+      const desc  = row.description || '';
+      const ysRaw = row.year_stall || row.year_group_owner || '';
+      // If first column now holds "7","8","12-13", capture as byYear
+      const key = normYearStr(ysRaw);
+      if (key && desc) byYear.set(key, desc);
+      if (stall && desc) byStall.set(stall, desc);
+    }
+    return { byStall, byYear };
+  }
+
+  function lookupDescriptionForSelectedStall(index){
+    if (!current.stall) return '';
+    // Prefer a direct stall description
+    if (index.byStall.has(current.stall)) return index.byStall.get(current.stall);
+    // Otherwise, find the year for the selected stall…
+    const row = (meta.stalls_meta||[]).find(x => x.stall === current.stall);
+    const stallYear = normYearStr(row && (row.year_group_owner || row.year_stall));
+    if (!stallYear) return '';
+    // …and match against byYear, including "12-13" style keys
+    for (const [key, text] of index.byYear.entries()){
+      if (yearMatches(stallYear, key)) return text;
+    }
+    return '';
+  }
+
+  let descIndex = { byStall:new Map(), byYear:new Map() };
+
   function renderStallDesc(){
-    if(!current.stall){ stallDesc.textContent = 'Choose a year-group stall to see details here.'; return; }
-    const m = (meta.stalls_meta || []).find(x => x.stall === current.stall);
-    stallDesc.textContent = (m && m.description) ? m.description : 'No description yet.';
+    if(!current.stall){
+      stallDesc.textContent = 'Choose a year-group stall to see details here.';
+      return;
+    }
+    const txt = lookupDescriptionForSelectedStall(descIndex);
+    stallDesc.textContent = txt || 'No description yet.';
   }
 
   async function loadMeta(){
@@ -271,7 +335,10 @@
     if(!data.ok){ showDebug('Meta error: ' + (data.error||'unknown')); return; }
     meta=data;
 
-    // Single-select chips
+    // Build description indices (supports new "year-group" key format)
+    descIndex = buildDescriptionIndex(meta.stalls_meta);
+
+    // Single-select chips (year-group stalls)
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
@@ -294,21 +361,22 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // Class dropdown — fixed order
-    childClass.innerHTML = `<option value="">—</option>` + ([
+    // Class dropdown — fixed order (MANDATORY)
+    childClass.innerHTML = `<option value="">— Select class —</option>` + ([
       "7KM","7KL","7BU","7AB","8RE","8PH","8NAA","8KH","9VM","9NA","9AW","9ATB",
       "10OM","10KF","10JT","10GR","10AN","11KAH","11IDC","11EW","11DU","11CJ",
       "12/13SSS","12/13RC","12/13NB","12/13LVE","12/13LN","12/13JD","12/13ID","12/13EDW","12/13AR","12/13ALB"
     ]).map(c=>`<option value="${c}">${c}</option>`).join('');
-
-    renderStallDesc();
   }
+
+  let groups=[];
+  const selection=new Map();
 
   async function loadGroups(){
     document.getElementById('loading').style.display='block';
     const params=new URLSearchParams();
     params.set('action','slots');
-    if(current.stall) params.set('stall', current.stall); // single filter (no delimiter issues)
+    if(current.stall) params.set('stall', current.stall);
     if(current.time) params.set('time', current.time);
     if(current.open) params.set('open','1');
 
@@ -340,7 +408,6 @@
   }
 
   function render(){
-    // count label as "roles"
     foundCount.textContent = groups.length ? `— ${groups.length} roles` : '';
 
     // Group by time header
@@ -397,18 +464,20 @@
   document.getElementById('openAll').addEventListener('change', (e)=>{ current.open=e.target.checked; loadGroups(); });
 
   // Submit
-  confirmBtn.addEventListener('click', async ()=>{
+  document.getElementById('confirm').addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
 
     const ok = (()=>{
       const okFirst = !!firstName.value.trim(); const okLast = !!lastName.value.trim();
       const okE = isValidEmail(email.value); const okM = isValidUKMobile(mobile.value);
+      const okC = !!childClass.value;
       firstName.classList.toggle('invalid', !okFirst);
       lastName.classList.toggle('invalid', !okLast);
       email.classList.toggle('invalid', !okE); emailErr.classList.toggle('show', !okE);
       mobile.classList.toggle('invalid', !okM); mobileErr.classList.toggle('show', !okM);
-      return okFirst && okLast && okE && okM;
+      childClass.classList.toggle('invalid', !okC); classErr.classList.toggle('show', !okC);
+      return okFirst && okLast && okE && okM && okC;
     })();
     if(!ok || selection.size===0){
       formBanner.textContent = selection.size===0
@@ -481,4 +550,3 @@
 </script>
 </body>
 </html>
-
