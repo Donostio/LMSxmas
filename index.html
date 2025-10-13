@@ -260,7 +260,7 @@
   // ====== Classifiers ======
   const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
   const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
-  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only donation mega-slot goes to section 2
+  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only mega donation slot goes to section 2
   function sectionOf(g){
     if (isLead(g)) return 0;
     if (isCoord(g)) return 1;
@@ -324,8 +324,7 @@
     p.set('action','slots');
     if(current.stall) p.set('stall', current.stall);
     if(current.time)  p.set('time',  current.time);
-    // Ask backend to include fully-booked rows too
-    p.set('includeFull','1');
+    p.set('includeFull','1'); // include full rows
     p.set('open','all');
 
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
@@ -422,10 +421,11 @@
   // ====== Controls ======
   hideFilled.addEventListener('change', loadGroups);
 
+  // UPDATED HANDLER: clears selection on success, removes conflicting URNs on error
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
-    const pickedLabels=[...selection.values()].map(v=>v.label); // snapshot now
+    const pickedLabels=[...selection.values()].map(v=>v.label); // snapshot for success message
 
     if(!validateForm() || selection.size===0){
       formBanner.textContent = selection.size===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
@@ -444,14 +444,27 @@
     }).toString();
 
     const res = await fetchJSON(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+
     if(!res.ok){
       const err = String(res.error||'');
       const nice = /Some positions are no longer available/i.test(err)
         ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
         : err || 'There was an error';
-      formBanner.textContent = nice; formBanner.style.display='block';
+      formBanner.textContent = nice;
+      formBanner.style.display='block';
+
+      // If backend listed URNs, prune those from current selection so user can re-submit immediately
+      const m = err.match(/no longer available:\s*(.+)$/i);
+      if(m){
+        const conflicts = m[1].split(',').map(s=>s.trim());
+        for(const [id, val] of selection){
+          if(conflicts.includes(val.urn)) selection.delete(id);
+        }
+        render();
+      }
+      confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      // Build WhatsApp links based on chosen stalls (and add Leads link if any Lead chosen)
+      // Success — build links & message, then clear selection so next submission starts fresh
       const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
       const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
       const links = uniqueStalls.map(s => GROUP_LINKS[s]).filter(Boolean);
@@ -460,6 +473,10 @@
         ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
         : '—';
 
+      selection.clear();
+      render();
+      confirmBtn.disabled = true;
+
       msgEl.innerHTML = `
         <strong>Thank you for volunteering!</strong><br/>
         Make a note of what slots you have opted for:
@@ -467,9 +484,9 @@
         And please join your volunteer group on WhatsApp now: ${linksHtml}
       `;
 
-      selection.clear();
       await Promise.all([loadGroups(), loadSummary()]);
     }
+
     confirmBtn.textContent=original; confirmBtn.classList.remove('wait');
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
