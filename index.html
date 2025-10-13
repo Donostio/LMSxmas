@@ -82,7 +82,7 @@
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
-    <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers. If you don't have the password ask in for form Whatsapp group.</div>
+    <div class="muted" style="margin-bottom:10px">This page is for LMS PTA volunteers. If you don't have the password please ask in your class Whatsapp group.</div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
@@ -187,6 +187,14 @@
 <script>
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
+
+  // HARD-CODED CLASS LIST so it never appears blank
+  const CLASS_LIST = [
+    '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
+    '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
+    '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB',
+    'N/A'
+  ];
 
   // key storage
   const getKey = ()=> localStorage.getItem('lms_key') || '';
@@ -341,6 +349,9 @@
     const timeHtml = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===selectedTime?'selected':''}>${t}</option>`).join('');
     timeSelect.innerHTML = timeHtml;
     current.time = selectedTime;
+
+    // Hard-coded classes (never blank)
+    childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
     // Restore stall chip state (collapse if previously chosen)
     if(prevStall){
@@ -538,7 +549,7 @@
 
   // Boot flow
   async function boot(){
-    if(booted) return;
+    if(booted) return;       // ✅ No double-boot
     booted = true;
     try{
       await loadMeta();
