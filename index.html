@@ -36,7 +36,7 @@
   .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
   .bar{ height:100%; background:var(--good); width:0%; }
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  @media(max-width: 640px){ .grid2{ grid-template-columns:1fr; } }
+  @media(max-width: 640px){ .grid2{ display:grid; grid-template-columns:1fr; gap:8px; } }
   ul{ margin:6px 0 0; padding-left:1rem; }
   .error{ color:var(--danger); font-weight:600; }
   .help{ font-size:12px; color:var(--muted); }
@@ -59,6 +59,7 @@
 </style>
 </head>
 <body>
+<!-- Password gate -->
 <div id="gate" class="gate" style="display:none">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -75,10 +76,11 @@
     <div class="muted">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
   </div>
 
+  <!-- Global loader -->
   <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
-
   <div id="netErr" class="banner" style="display:none"></div>
 
+  <!-- Filters -->
   <div class="card" id="filtersCard" style="margin-top:12px; display:none">
     <div class="filters">
       <div class="left">
@@ -95,6 +97,7 @@
 
   <div class="row" style="margin-top:12px">
     <div>
+      <!-- Toolbar -->
       <div class="toolbar" id="toolbar" style="display:none">
         <div class="muted"><strong id="needFill">We need to fill 0 more slots!</strong></div>
         <div class="right">
@@ -152,6 +155,7 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
+  // Time order (includes both Friday labels; Baking immediately after Stall Lead)
   const TIME_ORDER = [
     'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
     '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
@@ -178,28 +182,36 @@
   function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  // Fetch helper with diagnostics
+  // Fetch with longer timeout + exponential backoff
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
-  async function fetchJSON(url, opts={}, tries=2){
+  async function fetchJSON(url, opts={}, tries=3){
     const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
+    const tIndex = 3 - tries;
+    const timeouts = [12000, 22000, 35000];
+    const to = timeouts[Math.min(tIndex, timeouts.length-1)];
     try{
-      const res = await Promise.race([fetch(url+cb, {mode:'cors', redirect:'follow', ...opts}), timeout(12000)]);
+      const res = await Promise.race([
+        fetch(url+cb, {mode:'cors', redirect:'follow', keepalive:true, ...opts}),
+        timeout(to)
+      ]);
       const txt = await res.text();
       try { return JSON.parse(txt); }
       catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
-      if(tries>1) return fetchJSON(url, opts, tries-1);
-      showNetError(err);
+      if(tries>1){
+        await new Promise(r=>setTimeout(r, 300 + Math.random()*500));
+        return fetchJSON(url, opts, tries-1);
+      }
+      showNetError(err, url);
       return { ok:false, error:String(err) };
     }
   }
-  function showNetError(err){
-    if(!netErr) return;
+  function showNetError(err, url){
     netErr.style.display='block';
-    const testUrl = API_BASE + '?action=ping';
+    const ping = url ? url.replace(/\?.*$/,'')+'?action=ping' : (API_BASE+'?action=ping');
     netErr.innerHTML = `Network error talking to the rota. Please check your Apps Script deployment.<br>
       <strong>Tip:</strong> Deploy as <em>Execute as: Me</em> and <em>Who has access: Anyone</em> (new version).<br>
-      <a href="${testUrl}" target="_blank" rel="noopener">Test API (ping)</a><br>
+      <a href="${ping}" target="_blank" rel="noopener">Test API (ping)</a><br>
       <span class="error">${String(err)}</span>`;
   }
 
@@ -234,7 +246,7 @@
   // Classifiers
   const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
   const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
-  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only "Bake: ..." block gets elevated
+  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only donation mega-slot goes to section 2
   function sectionOf(g){
     if (isLead(g)) return 0;
     if (isCoord(g)) return 1;
@@ -297,7 +309,7 @@
     p.set('action','slots');
     if(current.stall) p.set('stall', current.stall);
     if(current.time)  p.set('time',  current.time);
-    // IMPORTANT: ask backend to include full slots too
+    // Ask backend to include fully-booked rows too
     p.set('includeFull','1');
     p.set('open','all');
 
@@ -308,10 +320,9 @@
     const { others, coords } = aggregateCoordinators(list);
     list=[...others, ...coords];
 
-    // Client-side hide fully-booked
     const applyHide = g => !hideFilled.checked || (g.remaining||0)>0;
-
     const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
+
     list = list.filter(applyHide).sort((a,b)=>{
       const sa=sectionOf(a), sb=sectionOf(b);
       if(sa!==sb) return sa-sb;
@@ -439,7 +450,7 @@
     }catch(e){
       debugEl.textContent = 'Startup error: ' + e.message;
       console.error(e);
-      showNetError(e);
+      showNetError(e, API_BASE);
     }
   })();
 })();
