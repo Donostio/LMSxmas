@@ -8,7 +8,7 @@
   :root{
     --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d;
     --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e03131; --badge:#f5f7fa;
-    --primary:#e53935; /* big red Confirm button */
+    --primary:#e53935;
   }
   *{ box-sizing:border-box; }
   body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
@@ -19,15 +19,12 @@
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
   .filters{ display:flex; gap:16px; align-items:flex-start; }
-  .filters .left{ flex: 1 1 auto; min-width:260px; }
-  .filters .right{ flex: 1 1 40%; min-width:260px; }
-  @media(max-width: 720px){
-    .filters{ flex-direction:column; }
-    .filters .right{ width:100%; }
-  }
+  .filters .left{ flex:1 1 auto; min-width:260px; }
+  .filters .right{ flex:1 1 40%; min-width:260px; }
+  @media(max-width: 720px){ .filters{ flex-direction:column; } .filters .right{ width:100%; } }
   label{ display:flex; flex-direction:column; gap:6px; font-weight:600; }
   select, input, button, .chip{ font:inherit; }
-  select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); transition: border-color .15s, background .15s; }
+  select, input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:var(--badge); transition:border-color .15s,background .15s; }
   .chips{ display:flex; gap:8px; flex-wrap:wrap; }
   .chip{ display:inline-block; padding:6px 12px; border-radius:999px; background:#ecf5fc; border:1px solid #d1e9ff; color:#1877c9; cursor:pointer; user-select:none; }
   .chip.active{ background:#d1e9ff; }
@@ -36,27 +33,24 @@
   .toolbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; }
   .toolbar .right{ display:flex; gap:12px; align-items:center; }
   .slot{ display:grid; grid-template-columns: 1fr 300px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; width:100%; }
-  @media(max-width: 640px){
-    .slot{ grid-template-columns: 1fr; }
-  }
+  @media(max-width: 640px){ .slot{ grid-template-columns:1fr; } }
   .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; white-space:nowrap; }
   .panel{ display:flex; flex-direction:column; gap:8px; }
   .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
   .bar{ height:100%; background:var(--good); width:0%; }
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  @media(max-width: 640px){ .grid2{ grid-template-columns: 1fr; } }
+  @media(max-width: 640px){ .grid2{ grid-template-columns:1fr; } }
   ul{ margin:6px 0 0; padding-left:1rem; }
   .error{ color:var(--danger); font-weight:600; }
   .help{ font-size:12px; color:var(--muted); }
   .req::after{ content:" *"; color:var(--danger); font-weight:700; }
-  .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; transition:background .2s, opacity .2s; }
+  .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; transition:background .2s,opacity .2s; }
   .btn.selected{ background:#1f7cc7; }
   .btn.wait{ background:var(--accent-wait); opacity:.85; }
   .btn-primary{ background:var(--primary); font-weight:700; padding:14px 18px; font-size:18px; border-radius:14px; }
   .loading{ padding:16px; font-weight:800; color:var(--danger); }
-  .mega{ font-size: 1.8rem; }            /* base loader size ~ 3x */
-  .mega .santa{ font-size: 2.4rem; }     /* Santa part ~ 4x */
-  .invalid{ border-color: var(--danger) !important; background:#fff5f5 !important; }
+  .mega{ font-size:1.8rem; } .mega .santa{ font-size:2.4rem; }
+  .invalid{ border-color:var(--danger)!important; background:#fff5f5!important; }
   .field-error{ display:none; font-size:12px; color:#e03131; margin-top:4px; }
   .field-error.show{ display:block; }
   .banner{ margin-top:8px; padding:8px 10px; border-radius:10px; background:#fff5f5; border:1px solid #ffd6d6; color:#9b1c1c; }
@@ -85,10 +79,8 @@
     <div class="muted">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
   </div>
 
-  <!-- Global loader (visible immediately; hidden only after cards render) -->
-  <div id="globalLoading" class="loading mega">
-    <span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!
-  </div>
+  <!-- Global loader -->
+  <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
 
   <!-- Filters -->
   <div class="card" id="filtersCard" style="margin-top:12px; display:none">
@@ -107,23 +99,21 @@
 
   <div class="row" style="margin-top:12px">
     <div>
-      <!-- Toolbar ABOVE role cards -->
+      <!-- Toolbar -->
       <div class="toolbar" id="toolbar" style="display:none">
         <div class="muted"><strong id="needFill">We need to fill 0 more slots!</strong></div>
         <div class="right">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600">
+            <input type="checkbox" id="hideFilled"/> <span>Hide fully-booked slots</span>
+          </label>
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
             <select id="timeSelect"></select>
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; font-weight:600">
-            <input type="checkbox" id="openAll"/> <span>Show filled slots too</span>
           </label>
         </div>
       </div>
 
       <div id="slots" class="slots"></div>
-      <div id="slotsLoading" class="loading mega" style="display:none">
-        <span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!
-      </div>
+      <div id="slotsLoading" class="loading mega" style="display:none"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
     </div>
 
     <div class="panel">
@@ -133,36 +123,13 @@
           Student volunteers: name and class but <em>parent/guardian email and mobile only</em>.
         </div>
         <div class="grid2" style="margin-top:4px">
-          <div>
-            <label class="req">First name
-              <input id="firstName" autocomplete="given-name"/>
-            </label>
-          </div>
-          <div>
-            <label class="req">Last name
-              <input id="lastName" autocomplete="family-name"/>
-            </label>
-          </div>
-          <div>
-            <label class="req">Email
-              <input id="email" type="email" autocomplete="email"/>
-              <div id="emailErr" class="field-error">Enter a valid email address.</div>
-            </label>
-          </div>
-          <div>
-            <label class="req">Mobile (for WhatsApp communications)
-              <input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/>
-              <div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx)</div>
-            </label>
-          </div>
+          <div><label class="req">First name <input id="firstName" autocomplete="given-name"/></label></div>
+          <div><label class="req">Last name  <input id="lastName"  autocomplete="family-name"/></label></div>
+          <div><label class="req">Email      <input id="email" type="email" autocomplete="email"/><div id="emailErr" class="field-error">Enter a valid email address.</div></label></div>
+          <div><label class="req">Mobile (for WhatsApp communications) <input id="mobile" type="tel" autocomplete="tel" placeholder="07xxxxxxxxx"/><div id="mobileErr" class="field-error">Enter a UK mobile (07xxxxxxxxx)</div></label></div>
         </div>
         <div class="grid2" style="margin-top:8px">
-          <div>
-            <label class="req">Class
-              <select id="childClass"></select>
-              <div id="classErr" class="field-error">Please choose a class.</div>
-            </label>
-          </div>
+          <div><label class="req">Class <select id="childClass"></select><div id="classErr" class="field-error">Please choose a class.</div></label></div>
           <div></div>
         </div>
         <div id="formBanner" class="banner" style="display:none"></div>
@@ -191,45 +158,45 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Time order (front-end enforced; puts Baking right after Stall Lead)
+  // Time order (add both Friday labels)
   const TIME_ORDER = [
-    'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm',
+    'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
     '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm',
-    '12:00pm - 1:00pm','12.00am -  2.00pm','1:00pm - 2:00pm',
-    '2:00pm - 3:00pm','2.00pm - 4.00pm'
+    '12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
   ];
   const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
-  // Elements (guard every lookup)
+  // Elements
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg'), app=$('app');
   const globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar');
   const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
-  const timeSelect=$('timeSelect'), openAll=$('openAll'), slotsEl=$('slots'), slotsLoading=$('slotsLoading');
-  const needFill=$('needFill'), selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
+  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
+  const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
+  const selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
   const firstName=$('firstName'), lastName=$('lastName'), email=$('email'), mobile=$('mobile'), childClass=$('childClass');
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
   // State
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[], descriptionsByStall:{} };
-  let stallIndex=new Map(); // stall -> order
-  let current={ stall:'', time:'', open:false };
+  let stallIndex=new Map(); // stall -> order (from GAS)
+  let current={ stall:'', time:'', open:false }; // 'open' no longer used; we use hideFilled checkbox
   let groups=[];
   const selection=new Map();
   let descMap = new Map();
 
-  // Helpers
-  function openGate(){ if(gate && app){ gate.style.display='flex'; app.style.display='none'; } }
-  function openApp(){ if(gate && app){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); } }
+  // Password gate
+  function openGate(){ gate.style.display='flex'; app.style.display='none'; }
+  function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
+  gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  gateBtn && gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else if(gateMsg) gateMsg.textContent='Incorrect password'; });
-
+  // Fetch with timeout+retry+cachebuster
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, tries=2){
-    const cacheBust = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
+    const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
     try{
-      const res = await Promise.race([fetch(url+cacheBust, {credentials:'omit', ...opts}), timeout(12000)]);
+      const res = await Promise.race([fetch(url+cb, {credentials:'omit', ...opts}), timeout(12000)]);
       const txt = await res.text();
       try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
@@ -238,78 +205,177 @@
     }
   }
 
-  function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim()); }
-  function isValidUKMobile(v){ const s=String(v||'').trim().replace(/\s+/g,''); return /^07\d{9}$/.test(s)||/^\+447\d{9}$/.test(s)||/^00447\d{9}$/.test(s); }
-  function setValidity(input, ok, errNode){ if(!input) return; input.classList.toggle('invalid', !ok); if(errNode) errNode.classList.toggle('show', !ok); }
+  // Validation
+  const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
+  const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
+  function setValidity(input, ok, errNode){ input.classList.toggle('invalid', !ok); if(errNode) errNode.classList.toggle('show', !ok); }
   function validateForm(){
-    const okFirst=!!(firstName&&firstName.value.trim()), okLast=!!(lastName&&lastName.value.trim());
+    const okFirst=!!firstName.value.trim(), okLast=!!lastName.value.trim();
+    const okE=isValidEmail(email.value), okM=isValidUKMobile(mobile.value), okC=!!childClass.value;
     setValidity(firstName, okFirst); setValidity(lastName, okLast);
-    const okE=isValidEmail(email&&email.value); setValidity(email, okE, emailErr);
-    const okM=isValidUKMobile(mobile&&mobile.value); setValidity(mobile, okM, mobileErr);
-    const okC=!!(childClass&&childClass.value); setValidity(childClass, okC, classErr);
+    setValidity(email, okE, emailErr); setValidity(mobile, okM, mobileErr); setValidity(childClass, okC, classErr);
     return okFirst && okLast && okE && okM && okC;
   }
-  document.addEventListener('input', ()=>{ if(confirmBtn) confirmBtn.disabled = !(validateForm() && selection.size>0); });
+  document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
+  // UI helpers
   function collapseTo(stallLabel){
-    if(!stallChips) return;
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
       c.style.display = match ? 'inline-block' : 'none';
       c.classList.toggle('active', match);
     });
-    if(changeYear) changeYear.style.display = 'inline';
+    changeYear.style.display = 'inline';
   }
   function expandAllChips(){
-    if(!stallChips) return;
-    stallChips.querySelectorAll('.chip').forEach(c=>{
-      c.style.display = 'inline-block';
-      c.classList.remove('active');
-    });
-    if(changeYear) changeYear.style.display = 'none';
+    stallChips.querySelectorAll('.chip').forEach(c=>{ c.style.display='inline-block'; c.classList.remove('active'); });
+    changeYear.style.display = 'none';
   }
-
   function renderStallDesc(){
-    if(!stallDesc) return;
     if(!current.stall){ stallDesc.textContent='Choose a year-group stall to see details here.'; return; }
     const txt = descMap.get(current.stall) || '';
     stallDesc.textContent = txt || 'No description yet.';
   }
 
+  // Role classifiers
+  const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
+  const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
+  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only the "Bake: ..." (13 slots) block is elevated
+  const isAnyBakeButNotDonation = g => /bake/i.test(g.role||'') && !isDonationBake(g);
+
   function sectionOf(g){
-    if (g.time==='Stall Lead' || /lead/i.test(g.role||'')) return 0;       // Leads
-    if (/^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'')) return 1;  // Co-ords (pre-aggregation)
-    if (/bake/i.test(g.role||'') || g.time==='Baking') return 2;           // Bakers
-    return 3;                                                              // Rest
+    if (isLead(g)) return 0;               // Leads first
+    if (isCoord(g)) return 1;              // Co-ordinators aggregated per stall
+    if (isDonationBake(g)) return 2;       // The "Bake: ..." donation mega-slot
+    return 3;                              // Everything else (incl. selling baked goods) by time
   }
 
+  // Aggregate co-ordinators per stall
   function aggregateCoordinators(list){
-    const isCoord = r => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(r.role||'');
     const keep=[], byStall=new Map();
     for(const g of list){
       if(!isCoord(g)){ keep.push(g); continue; }
-      const k = g.stall;
+      const k=g.stall;
       if(!byStall.has(k)){
-        byStall.set(k, {
-          group_id:`coord|${k}`,
-          stall:g.stall,
-          year_stall:g.stall,
-          role:'Stall co-ordinator',
-          time:g.time,
-          capacity:0, booked:0, remaining:0, available_urns:[]
-        });
+        byStall.set(k, { group_id:`coord|${k}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time, capacity:0, booked:0, remaining:0, available_urns:[] });
       }
       const agg=byStall.get(k);
       agg.capacity += g.capacity||0;
       agg.booked   += g.booked||0;
       agg.remaining+= g.remaining||0;
-      if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+      if(Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
     }
     return { others:keep, coords:Array.from(byStall.values()) };
   }
 
+  // Sorting helpers
+  const minUrn = g => {
+    const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
+    const nums = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+    return nums.length ? Math.min(...nums) : 999999;
+  };
+
+  // Data loads
+  async function loadMeta(){
+    const data=await fetchJSON(`${API_BASE}?action=meta`);
+    if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
+    meta=data;
+
+    stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
+
+    // chips
+    stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
+    stallChips.addEventListener('click',(e)=>{
+      const chip=e.target.closest('.chip'); if(!chip) return;
+      const s=chip.dataset.stall;
+      const wasActive = chip.classList.contains('active');
+      if(wasActive){ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); }
+      else{ current.stall=s; collapseTo(s); renderStallDesc(); loadGroups(); }
+    });
+    changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); });
+
+    // time dropdown (front-end order)
+    const times=(meta.times||[]).slice().sort((a,b)=> tIdx(a)-tIdx(b) || a.localeCompare(b));
+    timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
+    timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
+
+    // classes
+    childClass.innerHTML = `<option value="">— Select class —</option>` + (meta.classes||[]).map(c=>`<option value="${c}">${c}</option>`).join('');
+
+    // descriptions
+    descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
+    renderStallDesc();
+
+    // show filters/toolbar; keep global loader until cards render
+    filtersCard.style.display='block';
+    toolbar.style.display='flex';
+  }
+
+  async function loadGroups(){
+    slotsLoading.style.display='block';
+    slotsEl.innerHTML='';
+
+    const p=new URLSearchParams();
+    p.set('action','slots');
+    if(current.stall) p.set('stall', current.stall);
+    if(current.time)  p.set('time',  current.time);
+    // default now is to show all; filtering happens client-side via Hide fully-booked
+
+    const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
+    if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
+
+    // Start with list from API
+    let list=(data.data||[]).slice();
+
+    // Combine co-ordinators -> one group per stall
+    const { others, coords } = aggregateCoordinators(list);
+    list=[...others, ...coords];
+
+    // NEW: if "Hide fully-booked" is ticked, filter remaining==0
+    const applyHideFilled = g => !hideFilled.checked || (g.remaining||0)>0;
+    // Selling baked goods stay in their time section; only "Bake: ..." goes to donation section
+    // Sort:
+    //  0 Leads by stall order
+    //  1 Co-ords by stall order
+    //  2 Donation Bake by stall order
+    //  3 Rest by timeIndex, then stall order, then minUrn (chronological by URN)
+    const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
+    list = list.filter(applyHideFilled).sort((a,b)=>{
+      const sa=sectionOf(a), sb=sectionOf(b);
+      if(sa!==sb) return sa-sb;
+
+      if(sa<=2){ // leads/coords/donation-bake
+        const d=sIdx(a.stall)-sIdx(b.stall); if(d!==0) return d;
+        // keep “Lead” exact order within stall if multiples exist
+        return minUrn(a)-minUrn(b);
+      }
+      // Rest: by time then stall then URN (chronological)
+      const dt=tIdx(a.time)-tIdx(b.time); if(dt!==0) return dt;
+      const ds=sIdx(a.stall)-sIdx(b.stall); if(ds!==0) return ds;
+      return minUrn(a)-minUrn(b);
+    });
+
+    groups=list;
+    render();
+
+    slotsLoading.style.display='none';
+    globalLoading.style.display='none';
+  }
+
+  async function loadSummary(){
+    const data=await fetchJSON(`${API_BASE}?action=summary`);
+    if(!data.ok){ debugEl.textContent='Summary error: ' + (data.error||'unknown'); return; }
+    const sum=data.data||[];
+    summaryEl.innerHTML=sum.map(s=>{
+      const pct=Math.round((s.pct||0)*100);
+      return `<div style="margin:6px 0">${s.stall} — ${s.booked}/${s.capacity}
+        <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  }
+
   function render(){
-    if(!slotsEl || !needFill) return;
+    // live total of URNs not filled
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
 
@@ -327,7 +393,7 @@
       html += `<div class="slot" data-id="${g.group_id}">
         <div>
           <div><strong>${g.role||''}</strong></div>
-          <div class="muted">${g.stall}${g.time && sec!==3 ? ` • ${g.time}`:''}</div>
+          <div class="muted">${g.stall}${(g.time && sec!==3)?` • ${g.time}`:''}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap">
           ${bookedTxt}
@@ -338,148 +404,50 @@
     });
     slotsEl.innerHTML = html;
 
-    // bind selects safely
+    // Bind select buttons (with safety for empty URNs)
     document.querySelectorAll('.slot').forEach(card=>{
       const id=card.getAttribute('data-id');
       const g=groups.find(x=>x.group_id===id);
       const btn=card.querySelector('button');
       if(!btn || !g) return;
       btn.addEventListener('click', ()=>{
-        if(selection.has(id)){ selection.delete(id); }
-        else if((g.remaining||0)>0){
-          const urn=(g.available_urns && g.available_urns[0]) || '';
-          if(urn) selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time}` });
+        if(selection.has(id)){ selection.delete(id); render(); return; }
+        if((g.remaining||0)<=0 || !g.available_urns || !g.available_urns.length){
+          formBanner.textContent = 'Sorry, this role just filled up. Please choose another.';
+          formBanner.style.display='block';
+          return;
         }
+        const urn=g.available_urns[0];
+        selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time}` });
         render();
       });
     });
 
     const items=[...selection.values()];
-    selectedEl.innerHTML = items.length
-      ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>`
-      : '<div class="muted">No positions selected yet.</div>';
-    if(confirmBtn) confirmBtn.disabled = !(validateForm() && selection.size>0);
+    selectedEl.innerHTML = items.length ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>` : '<div class="muted">No positions selected yet.</div>';
+    confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  async function loadMeta(){
-    const data=await fetchJSON(`${API_BASE}?action=meta`);
-    if(!data.ok){ if(debugEl) debugEl.textContent='Meta error: '+(data.error||''); return; }
-    meta=data;
+  // Controls
+  hideFilled.addEventListener('change', loadGroups);
+  timeSelect.addEventListener('change', ()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // stall order map (for leads/coords/bakers)
-    stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
-
-    // chips
-    if(stallChips){
-      stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
-      stallChips.addEventListener('click', (e)=>{
-        const chip=e.target.closest('.chip'); if(!chip) return;
-        const s=chip.dataset.stall;
-        const wasActive = chip.classList.contains('active');
-        if (wasActive){
-          current.stall=''; expandAllChips(); renderStallDesc(); loadGroups();
-        } else {
-          current.stall=s; collapseTo(s); renderStallDesc(); loadGroups();
-        }
-      });
-    }
-    if(changeYear) changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); });
-
-    // time dropdown
-    if(timeSelect){
-      const times=(meta.times||[]).slice().sort((a,b)=> tIdx(a)-tIdx(b) || a.localeCompare(b));
-      timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
-      timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
-    }
-
-    // classes
-    if(childClass){
-      const classes = meta.classes && meta.classes.length ? meta.classes : [];
-      childClass.innerHTML = `<option value="">— Select class —</option>` + classes.map(c=>`<option value="${c}">${c}</option>`).join('');
-    }
-
-    // descriptions
-    descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
-    renderStallDesc();
-
-    // show filters/toolbar; keep global loader until cards render
-    if(filtersCard) filtersCard.style.display='block';
-    if(toolbar) toolbar.style.display='flex';
-  }
-
-  async function loadGroups(){
-    if(slotsLoading) slotsLoading.style.display='block';
-    if(slotsEl) slotsEl.innerHTML='';
-
-    const params=new URLSearchParams();
-    params.set('action','slots');
-    if(current.stall) params.set('stall', current.stall);
-    if(current.time) params.set('time', current.time);
-    if(current.open) params.set('open','1');
-
-    const data=await fetchJSON(`${API_BASE}?${params.toString()}`);
-    if(!data.ok){
-      if(debugEl) debugEl.textContent='Slots error: '+(data.error||'');
-      groups=[];
-    }else{
-      let list=(data.data||[]).slice();
-      // aggregate co-ordinators per stall
-      const { others, coords } = aggregateCoordinators(list);
-      list=[...others, ...coords];
-      // sort: leads (stall order), coords (stall order), bakers (stall order), rest (time->stall->role)
-      const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
-      list.sort((a,b)=>{
-        const sa=sectionOf(a), sb=sectionOf(b);
-        if(sa!==sb) return sa-sb;
-        if(sa<=2){
-          const d=sIdx(a.stall)-sIdx(b.stall); if(d!==0) return d;
-          return (a.role||'').localeCompare(b.role||'');
-        }
-        const dt=tIdx(a.time)-tIdx(b.time); if(dt!==0) return dt;
-        const ds=sIdx(a.stall)-sIdx(b.stall); if(ds!==0) return ds;
-        return (a.role||'').localeCompare(b.role||'');
-      });
-      groups=list;
-    }
-
-    render();
-
-    if(slotsLoading) slotsLoading.style.display='none';
-    if(globalLoading) globalLoading.style.display='none'; // hide page loader once cards are in
-  }
-
-  async function loadSummary(){
-    const data=await fetchJSON(`${API_BASE}?action=summary`);
-    if(!data.ok){ if(debugEl) debugEl.textContent='Summary error: '+(data.error||''); return; }
-    const sum=data.data||[];
-    if(summaryEl){
-      summaryEl.innerHTML=sum.map(s=>{
-        const pct=Math.round((s.pct||0)*100);
-        return `<div style="margin:6px 0">${s.stall} — ${s.booked}/${s.capacity}
-          <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  confirmBtn && confirmBtn.addEventListener('click', async ()=>{
-    if(formBanner){ formBanner.style.display='none'; formBanner.textContent=''; }
+  confirmBtn.addEventListener('click', async ()=>{
+    formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
+
     if(!validateForm() || selection.size===0){
-      if(formBanner){
-        formBanner.textContent = selection.size===0
-          ? 'Please select at least one position.'
-          : 'Please correct the highlighted fields.';
-        formBanner.style.display='block';
-      }
+      formBanner.textContent = selection.size===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
+      formBanner.style.display='block';
       confirmBtn.disabled = true;
       return;
     }
+
     const original=confirmBtn.textContent;
     confirmBtn.textContent='Please wait…';
     confirmBtn.classList.add('wait');
     confirmBtn.disabled=true;
-    if(msgEl) msgEl.textContent='';
+    msgEl.textContent='';
 
     const body = new URLSearchParams({
       first_name:firstName.value.trim(),
@@ -490,19 +458,15 @@
       slot_ids: urns.join(',')
     }).toString();
 
-    const res = await fetchJSON(API_BASE, {
-      method:'POST',
-      headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
-      body
-    });
+    const res = await fetchJSON(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
     if(!res.ok){
       const err = String(res.error||'');
       const nice = /Some positions are no longer available/i.test(err)
         ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
         : err || 'There was an error';
-      if(formBanner){ formBanner.textContent = nice; formBanner.style.display='block'; }
+      formBanner.textContent = nice; formBanner.style.display='block';
     }else{
-      if(msgEl) msgEl.textContent='Thank you! Please make a note of your choice. Your class rep will be in touch.';
+      msgEl.textContent='Thank you! Please make a note of your choice. Your class rep will be in touch.';
       selection.clear();
       await Promise.all([loadGroups(), loadSummary()]);
     }
@@ -511,16 +475,16 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // Boot (with password gate)
+  // Boot
   (async function(){
     try{
       if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
       openApp();
       await loadMeta();
       await loadSummary();
-      await loadGroups();
+      await loadGroups(); // loaders hide after cards render
     }catch(e){
-      if(debugEl) debugEl.textContent = 'Startup error: ' + e.message;
+      debugEl.textContent = 'Startup error: ' + e.message;
       console.error(e);
     }
   })();
