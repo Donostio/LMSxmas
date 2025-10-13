@@ -137,7 +137,8 @@
         <strong>Your selected positions</strong>
         <div id="selected"></div>
         <button id="confirm" class="btn btn-primary" style="margin-top:8px" type="button" disabled>Confirm sign-up</button>
-        <div id="msg" class="muted" style="margin-top:6px"></div>
+        <!-- Removed 'muted' so success is not grey -->
+        <div id="msg" style="margin-top:6px"></div>
       </div>
 
       <div class="card">
@@ -267,18 +268,34 @@
     if (isDonationBake(g)) return 2;
     return 3;
   }
+
+  // MERGE FIX: aggregate co-ordinators by (stall + time), not by stall only
   function aggregateCoordinators(list){
-    const keep=[], byStall=new Map();
+    const keep=[], byKey=new Map();
     for(const g of list){
       if(!isCoord(g)){ keep.push(g); continue; }
-      const k=g.stall;
-      if(!byStall.has(k)) byStall.set(k, { group_id:`coord|${k}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time, capacity:0, booked:0, remaining:0, available_urns:[] });
-      const agg=byStall.get(k);
-      agg.capacity += g.capacity||0; agg.booked += g.booked||0; agg.remaining += g.remaining||0;
+      const key = `${g.stall}|${g.time||''}`;
+      if(!byKey.has(key)){
+        byKey.set(key, {
+          group_id:`coord|${key}`,
+          stall:g.stall,
+          year_stall:g.stall,
+          role:'Stall co-ordinator',
+          time:g.time||'',
+          capacity:0, booked:0, remaining:0,
+          all_urns:[], available_urns:[]
+        });
+      }
+      const agg=byKey.get(key);
+      agg.capacity += g.capacity||0;
+      agg.booked   += g.booked||0;
+      agg.remaining= Math.max(0, agg.capacity - agg.booked);
       if(Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+      if(Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
     }
-    return { others:keep, coords:Array.from(byStall.values()) };
+    return { others:keep, coords:Array.from(byKey.values()) };
   }
+
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
     const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
@@ -408,7 +425,8 @@
           return;
         }
         const urn=g.available_urns[0];
-        selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time}` });
+        // Label now always uses the group's TIME (and for merged co-ords, merge is per time)
+        selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time || ''}` });
         render();
       });
     });
@@ -421,7 +439,7 @@
   // ====== Controls ======
   hideFilled.addEventListener('change', loadGroups);
 
-  // UPDATED HANDLER: clears selection on success, removes conflicting URNs on error
+  // Clear selection on success; prune conflicting URNs on error; success text black+bold
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -432,7 +450,9 @@
       formBanner.style.display='block'; confirmBtn.disabled = true; return;
     }
     const original=confirmBtn.textContent;
-    confirmBtn.textContent='Please wait…'; confirmBtn.classList.add('wait'); confirmBtn.disabled=true; msgEl.textContent='';
+    confirmBtn.textContent='Please wait…'; confirmBtn.classList.add('wait'); confirmBtn.disabled=true;
+    // ensure success message isn't grey
+    msgEl.style.color = '#111'; msgEl.style.fontWeight = '700';
 
     const body = new URLSearchParams({
       first_name:firstName.value.trim(),
@@ -464,7 +484,6 @@
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      // Success — build links & message, then clear selection so next submission starts fresh
       const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
       const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
       const links = uniqueStalls.map(s => GROUP_LINKS[s]).filter(Boolean);
@@ -477,11 +496,18 @@
       render();
       confirmBtn.disabled = true;
 
+      // Bold/black thank-you with the picked slots
       msgEl.innerHTML = `
-        <strong>Thank you for volunteering!</strong><br/>
-        Make a note of what slots you have opted for:
-        <ul>${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
-        And please join your volunteer group on WhatsApp now: ${linksHtml}
+        <div style="color:#111; font-weight:700">
+          Thank you for volunteering!
+        </div>
+        <div style="color:#111; font-weight:700; margin-top:6px">
+          Make a note of what slots you have opted for:
+        </div>
+        <ul style="color:#111; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
+        <div style="color:#111; font-weight:700; margin-top:6px">
+          And please join your volunteer group on WhatsApp now: ${linksHtml}
+        </div>
       `;
 
       await Promise.all([loadGroups(), loadSummary()]);
