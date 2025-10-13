@@ -5,11 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>LMS Christmas Fair — Volunteer sign-up</title>
 <style>
-  :root{
-    --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d;
-    --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e03131; --badge:#f5f7fa;
-    --primary:#e53935;
-  }
+  :root{ --bg:#f8f9fb; --card:#fff; --text:#222; --muted:#6c757d;
+    --accent:#3498db; --accent-wait:#7f8c8d; --good:#2ecc71; --danger:#e03131; --badge:#f5f7fa; --primary:#e53935; }
   *{ box-sizing:border-box; }
   body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
   .wrap{ max-width:1160px; margin:24px auto; padding:0 16px; }
@@ -62,7 +59,6 @@
 </style>
 </head>
 <body>
-<!-- Password gate -->
 <div id="gate" class="gate" style="display:none">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -79,10 +75,10 @@
     <div class="muted">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
   </div>
 
-  <!-- Global loader -->
   <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
 
-  <!-- Filters -->
+  <div id="netErr" class="banner" style="display:none"></div>
+
   <div class="card" id="filtersCard" style="margin-top:12px; display:none">
     <div class="filters">
       <div class="left">
@@ -99,7 +95,6 @@
 
   <div class="row" style="margin-top:12px">
     <div>
-      <!-- Toolbar -->
       <div class="toolbar" id="toolbar" style="display:none">
         <div class="muted"><strong id="needFill">We need to fill 0 more slots!</strong></div>
         <div class="right">
@@ -154,22 +149,18 @@
 
 <script>
 (function(){
-  // === CONFIG ===
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Time order (add both Friday labels)
   const TIME_ORDER = [
     'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
-    '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm',
-    '12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
+    '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
   ];
   const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
-  // Elements
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg'), app=$('app');
-  const globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar');
+  const globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
   const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
   const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
   const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
@@ -178,43 +169,48 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // State
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[], descriptionsByStall:{} };
-  let stallIndex=new Map(); // stall -> order (from GAS)
-  let current={ stall:'', time:'', open:false }; // 'open' no longer used; we use hideFilled checkbox
-  let groups=[];
-  const selection=new Map();
-  let descMap = new Map();
+  let stallIndex=new Map(); let current={ stall:'', time:'' };
+  let groups=[]; const selection=new Map(); let descMap = new Map();
 
-  // Password gate
+  // Password
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  // Fetch with timeout+retry+cachebuster
+  // Fetch helper with diagnostics
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, tries=2){
     const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
     try{
-      const res = await Promise.race([fetch(url+cb, {credentials:'omit', ...opts}), timeout(12000)]);
+      const res = await Promise.race([fetch(url+cb, {mode:'cors', redirect:'follow', ...opts}), timeout(12000)]);
       const txt = await res.text();
-      try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
+      try { return JSON.parse(txt); }
+      catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
       if(tries>1) return fetchJSON(url, opts, tries-1);
+      showNetError(err);
       return { ok:false, error:String(err) };
     }
+  }
+  function showNetError(err){
+    if(!netErr) return;
+    netErr.style.display='block';
+    const testUrl = API_BASE + '?action=ping';
+    netErr.innerHTML = `Network error talking to the rota. Please check your Apps Script deployment.<br>
+      <strong>Tip:</strong> Deploy as <em>Execute as: Me</em> and <em>Who has access: Anyone</em> (new version).<br>
+      <a href="${testUrl}" target="_blank" rel="noopener">Test API (ping)</a><br>
+      <span class="error">${String(err)}</span>`;
   }
 
   // Validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
-  function setValidity(input, ok, errNode){ input.classList.toggle('invalid', !ok); if(errNode) errNode.classList.toggle('show', !ok); }
+  function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
   function validateForm(){
-    const okFirst=!!firstName.value.trim(), okLast=!!lastName.value.trim();
-    const okE=isValidEmail(email.value), okM=isValidUKMobile(mobile.value), okC=!!childClass.value;
-    setValidity(firstName, okFirst); setValidity(lastName, okLast);
-    setValidity(email, okE, emailErr); setValidity(mobile, okM, mobileErr); setValidity(childClass, okC, classErr);
-    return okFirst && okLast && okE && okM && okC;
+    const okF=!!firstName.value.trim(), okL=!!lastName.value.trim(), okE=isValidEmail(email.value), okM=isValidUKMobile(mobile.value), okC=!!childClass.value;
+    setValidity(firstName, okF); setValidity(lastName, okL); setValidity(email, okE, emailErr); setValidity(mobile, okM, mobileErr); setValidity(childClass, okC, classErr);
+    return okF && okL && okE && okM && okC;
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
@@ -232,58 +228,43 @@
     changeYear.style.display = 'none';
   }
   function renderStallDesc(){
-    if(!current.stall){ stallDesc.textContent='Choose a year-group stall to see details here.'; return; }
-    const txt = descMap.get(current.stall) || '';
-    stallDesc.textContent = txt || 'No description yet.';
+    stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group stall to see details here.';
   }
 
-  // Role classifiers
+  // Classifiers
   const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
   const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
-  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only the "Bake: ..." (13 slots) block is elevated
-  const isAnyBakeButNotDonation = g => /bake/i.test(g.role||'') && !isDonationBake(g);
-
+  const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only "Bake: ..." block gets elevated
   function sectionOf(g){
-    if (isLead(g)) return 0;               // Leads first
-    if (isCoord(g)) return 1;              // Co-ordinators aggregated per stall
-    if (isDonationBake(g)) return 2;       // The "Bake: ..." donation mega-slot
-    return 3;                              // Everything else (incl. selling baked goods) by time
+    if (isLead(g)) return 0;
+    if (isCoord(g)) return 1;
+    if (isDonationBake(g)) return 2;
+    return 3;
   }
-
-  // Aggregate co-ordinators per stall
   function aggregateCoordinators(list){
     const keep=[], byStall=new Map();
     for(const g of list){
       if(!isCoord(g)){ keep.push(g); continue; }
       const k=g.stall;
-      if(!byStall.has(k)){
-        byStall.set(k, { group_id:`coord|${k}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time, capacity:0, booked:0, remaining:0, available_urns:[] });
-      }
+      if(!byStall.has(k)) byStall.set(k, { group_id:`coord|${k}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time, capacity:0, booked:0, remaining:0, available_urns:[] });
       const agg=byStall.get(k);
-      agg.capacity += g.capacity||0;
-      agg.booked   += g.booked||0;
-      agg.remaining+= g.remaining||0;
+      agg.capacity += g.capacity||0; agg.booked += g.booked||0; agg.remaining += g.remaining||0;
       if(Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
     }
     return { others:keep, coords:Array.from(byStall.values()) };
   }
-
-  // Sorting helpers
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
-    const nums = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
-    return nums.length ? Math.min(...nums) : 999999;
+    const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+    return ns.length ? Math.min(...ns) : 999999;
   };
 
-  // Data loads
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
     meta=data;
-
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
 
-    // chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
     stallChips.addEventListener('click',(e)=>{
       const chip=e.target.closest('.chip'); if(!chip) return;
@@ -294,19 +275,15 @@
     });
     changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); });
 
-    // time dropdown (front-end order)
     const times=(meta.times||[]).slice().sort((a,b)=> tIdx(a)-tIdx(b) || a.localeCompare(b));
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
-    // classes
     childClass.innerHTML = `<option value="">— Select class —</option>` + (meta.classes||[]).map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    // descriptions
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
     renderStallDesc();
 
-    // show filters/toolbar; keep global loader until cards render
     filtersCard.style.display='block';
     toolbar.style.display='flex';
   }
@@ -314,42 +291,31 @@
   async function loadGroups(){
     slotsLoading.style.display='block';
     slotsEl.innerHTML='';
+    netErr.style.display='none';
 
     const p=new URLSearchParams();
     p.set('action','slots');
     if(current.stall) p.set('stall', current.stall);
     if(current.time)  p.set('time',  current.time);
-    // default now is to show all; filtering happens client-side via Hide fully-booked
+    // IMPORTANT: ask backend to include full slots too
+    p.set('includeFull','1');
+    p.set('open','all');
 
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
 
-    // Start with list from API
     let list=(data.data||[]).slice();
-
-    // Combine co-ordinators -> one group per stall
     const { others, coords } = aggregateCoordinators(list);
     list=[...others, ...coords];
 
-    // NEW: if "Hide fully-booked" is ticked, filter remaining==0
-    const applyHideFilled = g => !hideFilled.checked || (g.remaining||0)>0;
-    // Selling baked goods stay in their time section; only "Bake: ..." goes to donation section
-    // Sort:
-    //  0 Leads by stall order
-    //  1 Co-ords by stall order
-    //  2 Donation Bake by stall order
-    //  3 Rest by timeIndex, then stall order, then minUrn (chronological by URN)
+    // Client-side hide fully-booked
+    const applyHide = g => !hideFilled.checked || (g.remaining||0)>0;
+
     const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
-    list = list.filter(applyHideFilled).sort((a,b)=>{
+    list = list.filter(applyHide).sort((a,b)=>{
       const sa=sectionOf(a), sb=sectionOf(b);
       if(sa!==sb) return sa-sb;
-
-      if(sa<=2){ // leads/coords/donation-bake
-        const d=sIdx(a.stall)-sIdx(b.stall); if(d!==0) return d;
-        // keep “Lead” exact order within stall if multiples exist
-        return minUrn(a)-minUrn(b);
-      }
-      // Rest: by time then stall then URN (chronological)
+      if(sa<=2){ const d=sIdx(a.stall)-sIdx(b.stall); if(d!==0) return d; return minUrn(a)-minUrn(b); }
       const dt=tIdx(a.time)-tIdx(b.time); if(dt!==0) return dt;
       const ds=sIdx(a.stall)-sIdx(b.stall); if(ds!==0) return ds;
       return minUrn(a)-minUrn(b);
@@ -375,7 +341,6 @@
   }
 
   function render(){
-    // live total of URNs not filled
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
 
@@ -404,7 +369,6 @@
     });
     slotsEl.innerHTML = html;
 
-    // Bind select buttons (with safety for empty URNs)
     document.querySelectorAll('.slot').forEach(card=>{
       const id=card.getAttribute('data-id');
       const g=groups.find(x=>x.group_id===id);
@@ -413,7 +377,7 @@
       btn.addEventListener('click', ()=>{
         if(selection.has(id)){ selection.delete(id); render(); return; }
         if((g.remaining||0)<=0 || !g.available_urns || !g.available_urns.length){
-          formBanner.textContent = 'Sorry, this role just filled up. Please choose another.';
+          formBanner.textContent = 'Sorry, this role is fully booked now.';
           formBanner.style.display='block';
           return;
         }
@@ -428,26 +392,17 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // Controls
   hideFilled.addEventListener('change', loadGroups);
-  timeSelect.addEventListener('change', ()=>{ current.time=timeSelect.value; loadGroups(); });
 
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
-
     if(!validateForm() || selection.size===0){
       formBanner.textContent = selection.size===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
-      formBanner.style.display='block';
-      confirmBtn.disabled = true;
-      return;
+      formBanner.style.display='block'; confirmBtn.disabled = true; return;
     }
-
     const original=confirmBtn.textContent;
-    confirmBtn.textContent='Please wait…';
-    confirmBtn.classList.add('wait');
-    confirmBtn.disabled=true;
-    msgEl.textContent='';
+    confirmBtn.textContent='Please wait…'; confirmBtn.classList.add('wait'); confirmBtn.disabled=true; msgEl.textContent='';
 
     const body = new URLSearchParams({
       first_name:firstName.value.trim(),
@@ -470,22 +425,21 @@
       selection.clear();
       await Promise.all([loadGroups(), loadSummary()]);
     }
-    confirmBtn.textContent=original;
-    confirmBtn.classList.remove('wait');
+    confirmBtn.textContent=original; confirmBtn.classList.remove('wait');
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // Boot
   (async function(){
     try{
       if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
       openApp();
       await loadMeta();
       await loadSummary();
-      await loadGroups(); // loaders hide after cards render
+      await loadGroups();
     }catch(e){
       debugEl.textContent = 'Startup error: ' + e.message;
       console.error(e);
+      showNetError(e);
     }
   })();
 })();
