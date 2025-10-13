@@ -13,7 +13,7 @@
   .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
   h1{ font-size:28px; margin:0 0 6px; }
 
-  /* ---------- HERO (new) ---------- */
+  /* ---------- HERO (header) ---------- */
   .hero{
     position:relative;
     border-radius:16px;
@@ -49,7 +49,7 @@
     .hero-logo{ height:56px; margin-top:6px; }
   }
 
-  /* ---------- Rest of UI ---------- */
+  /* ---------- Layout & UI ---------- */
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
@@ -114,10 +114,10 @@
   <header class="hero">
     <div class="hero-content">
       <div class="hero-text">
-        <h1>LMS Christmas Fair — PTA Volunteer sign-up</h1>
+        <h1>LMS Christmas Fair — Volunteer sign-up</h1>
         <div class="hero-sub">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
       </div>
-      <img class="hero-logo" src="images/PTAlogoH2.png" alt="Lady Margaret School PTA" />
+      <img class="hero-logo" src="images/PTAlogoH.png" alt="Lady Margaret School PTA" />
     </div>
   </header>
 
@@ -189,6 +189,15 @@
         <strong>Booked summary</strong>
         <div id="summary"></div>
       </div>
+
+      <!-- Help / feedback box (NEW) -->
+      <div class="card">
+        <strong>Need to cancel or get help?</strong>
+        <p style="margin:8px 0 0;">
+          If you need to cancel a booking you made, give feedback on this site, or request help,
+          please use <a href="https://forms.gle/kwztF7jAgroXYQ8U6" target="_blank" rel="noopener">this form</a>.
+        </p>
+      </div>
     </div>
   </div>
 
@@ -201,7 +210,7 @@
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
 
-  // Local WhatsApp group links
+  // WhatsApp group links (local)
   const GROUP_LINKS = {
     "Y7: Santa's Grotto": "http://tiny.cc/Xmas7",
     "Y8 Mulled wine, Mince Pies & Hot Drinks": "http://tiny.cc/Xmas8",
@@ -240,7 +249,7 @@
   function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  // Fetch helper
+  // Fetch helper (with timeout/backoff)
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, tries=3){
     const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
@@ -311,7 +320,7 @@
     if (isDonationBake(g)) return 2;
     return 3;
   }
-  // Merge coordinators per (stall + time) so labels end with the real Time
+  // Merge co-ordinators per (stall + time) so labels end with the real Time
   function aggregateCoordinators(list){
     const keep=[], byKey=new Map();
     for(const g of list){
@@ -369,7 +378,6 @@
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
     renderStallDesc();
 
-    // show rest of UI
     filtersCard.style.display='block';
     toolbar.style.display='flex';
   }
@@ -492,7 +500,7 @@
     }
     const original=confirmBtn.textContent;
     confirmBtn.textContent='Please wait…'; confirmBtn.classList.add('wait'); confirmBtn.disabled=true;
-    msgEl.style.color = '#111'; msgEl.style.fontWeight = '700';
+    const msgEl=document.getElementById('msg'); msgEl.style.color='#111'; msgEl.style.fontWeight='700';
 
     const body = new URLSearchParams({
       first_name:firstName.value.trim(),
