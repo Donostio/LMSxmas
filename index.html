@@ -36,10 +36,10 @@
   .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
   .bar{ height:100%; background:var(--good); width:0%; }
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  @media(max-width: 640px){ .grid2{ display:grid; grid-template-columns:1fr; gap:8px; } }
+  @media(max-width: 640px){ .grid2{ grid-template-columns:1fr; } }
   ul{ margin:6px 0 0; padding-left:1rem; }
   .error{ color:var(--danger); font-weight:600; }
-  .help{ font-size:12px; color:var(--muted); }
+  .help{ font-size:12px; color:#6c757d; }
   .req::after{ content:" *"; color:var(--danger); font-weight:700; }
   .btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; transition:background .2s,opacity .2s; }
   .btn.selected{ background:#1f7cc7; }
@@ -152,8 +152,20 @@
 
 <script>
 (function(){
+  // ====== CONFIG ======
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
   const PASSWORD = 'LMSWinterWonder';
+
+  // Local WhatsApp group links (edit here anytime)
+  const GROUP_LINKS = {
+    "Y7: Santa's Grotto": "http://tiny.cc/Xmas7",
+    "Y8 Mulled wine, Mince Pies & Hot Drinks": "http://tiny.cc/Xmas8",
+    "Y9: Bakery and Spin the Wheel": "http://tiny.cc/Xmas9",
+    "Y10: Books & Pre Loved Stall Rota": "http://tiny.cc/Xmas10",
+    "Y11: Teen Tombola": "http://tiny.cc/Xmas11",
+    "Y12/13 Vintage, Uniform & Bottle Tombola": "http://tiny.cc/Xmas12-13",
+    "Leads": "http://tiny.cc/LMSleads"
+  };
 
   // Time order (includes both Friday labels; Baking immediately after Stall Lead)
   const TIME_ORDER = [
@@ -162,6 +174,7 @@
   ];
   const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
+  // ====== Elements ======
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg'), app=$('app');
   const globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
@@ -173,16 +186,17 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
+  // ====== State ======
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[], descriptionsByStall:{} };
   let stallIndex=new Map(); let current={ stall:'', time:'' };
   let groups=[]; const selection=new Map(); let descMap = new Map();
 
-  // Password
+  // ====== Password gate ======
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
   gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
 
-  // Fetch with longer timeout + exponential backoff
+  // ====== Fetch with longer timeout + exponential backoff ======
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, tries=3){
     const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
@@ -215,7 +229,7 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  // Validation
+  // ====== Validation ======
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -226,7 +240,7 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
-  // UI helpers
+  // ====== UI helpers ======
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -243,7 +257,7 @@
     stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group stall to see details here.';
   }
 
-  // Classifiers
+  // ====== Classifiers ======
   const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
   const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||''); // only donation mega-slot goes to section 2
@@ -271,6 +285,7 @@
     return ns.length ? Math.min(...ns) : 999999;
   };
 
+  // ====== Loads ======
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
@@ -351,6 +366,7 @@
     }).join('');
   }
 
+  // ====== Render ======
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -403,11 +419,14 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
+  // ====== Controls ======
   hideFilled.addEventListener('change', loadGroups);
 
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
+    const pickedLabels=[...selection.values()].map(v=>v.label); // snapshot now
+
     if(!validateForm() || selection.size===0){
       formBanner.textContent = selection.size===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
       formBanner.style.display='block'; confirmBtn.disabled = true; return;
@@ -432,7 +451,22 @@
         : err || 'There was an error';
       formBanner.textContent = nice; formBanner.style.display='block';
     }else{
-      msgEl.textContent='Thank you! Please make a note of your choice. Your class rep will be in touch.';
+      // Build WhatsApp links based on chosen stalls (and add Leads link if any Lead chosen)
+      const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
+      const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
+      const links = uniqueStalls.map(s => GROUP_LINKS[s]).filter(Boolean);
+      if (hasLead && GROUP_LINKS['Leads']) links.push(GROUP_LINKS['Leads']);
+      const linksHtml = links.length
+        ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
+        : '—';
+
+      msgEl.innerHTML = `
+        <strong>Thank you for volunteering!</strong><br/>
+        Make a note of what slots you have opted for:
+        <ul>${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
+        And please join your volunteer group on WhatsApp now: ${linksHtml}
+      `;
+
       selection.clear();
       await Promise.all([loadGroups(), loadSummary()]);
     }
@@ -440,6 +474,7 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
+  // ====== Boot ======
   (async function(){
     try{
       if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
