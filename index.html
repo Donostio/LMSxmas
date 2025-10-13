@@ -13,43 +13,19 @@
   .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
   h1{ font-size:28px; margin:0 0 6px; }
 
-  /* ---------- HERO (header) ---------- */
-  .hero{
-    position:relative;
-    border-radius:16px;
-    overflow:hidden;
-    border:1px solid #e6ebf1;
-    background:#022a31 url("images/BG.png") center/cover no-repeat;
-    min-height:120px;
-  }
-  .hero::before{
-    content:"";
-    position:absolute; inset:0;
-    background:linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.25));
-  }
-  .hero-content{
-    position:relative; z-index:1;
-    display:flex; align-items:center; justify-content:space-between;
-    gap:16px; padding:16px;
-  }
+  /* HERO */
+  .hero{ position:relative; border-radius:16px; overflow:hidden; border:1px solid #e6ebf1;
+    background:#022a31 url("images/BG.png") center/cover no-repeat; min-height:120px; }
+  .hero::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.25)); }
+  .hero-content{ position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; }
   .hero-text{ color:#fff; }
   .hero-text h1{ color:#fff; font-size:28px; margin:0 0 4px; }
   .hero-sub{ color:#fff; opacity:.9; }
-  .hero-logo{
-    height:56px; width:auto; object-fit:contain;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
-  }
-  @media(min-width:900px){
-    .hero{ min-height:160px; }
-    .hero-text h1{ font-size:32px; }
-    .hero-logo{ height:72px; }
-  }
-  @media(max-width:640px){
-    .hero-content{ flex-direction:column; align-items:flex-start; }
-    .hero-logo{ height:56px; margin-top:6px; }
-  }
+  .hero-logo{ height:56px; width:auto; object-fit:contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+  @media(min-width:900px){ .hero{ min-height:160px; } .hero-text h1{ font-size:32px; } .hero-logo{ height:72px; } }
+  @media(max-width:640px){ .hero-content{ flex-direction:column; align-items:flex-start; } .hero-logo{ height:56px; margin-top:6px; } }
 
-  /* ---------- Layout & UI ---------- */
+  /* Layout & UI */
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
@@ -98,7 +74,7 @@
 </head>
 <body>
 <!-- Password gate -->
-<div id="gate" class="gate" style="display:none">
+<div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
     <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers.</div>
@@ -109,7 +85,6 @@
 </div>
 
 <div class="wrap" id="app" style="display:none">
-
   <!-- HERO header with background + logo -->
   <header class="hero">
     <div class="hero-content">
@@ -190,7 +165,7 @@
         <div id="summary"></div>
       </div>
 
-      <!-- Help / feedback box (NEW) -->
+      <!-- Help / feedback box -->
       <div class="card">
         <strong>Need to cancel or get help?</strong>
         <p style="margin:8px 0 0;">
@@ -206,31 +181,17 @@
 
 <script>
 (function(){
-  // ====== CONFIG ======
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
-  const PASSWORD = 'LMSWinterWonder';
 
-  // WhatsApp group links (local)
-  const GROUP_LINKS = {
-    "Y7: Santa's Grotto": "http://tiny.cc/Xmas7",
-    "Y8 Mulled wine, Mince Pies & Hot Drinks": "http://tiny.cc/Xmas8",
-    "Y9: Bakery and Spin the Wheel": "http://tiny.cc/Xmas9",
-    "Y10: Books & Pre Loved Stall Rota": "http://tiny.cc/Xmas10",
-    "Y11: Teen Tombola": "http://tiny.cc/Xmas11",
-    "Y12/13 Vintage, Uniform & Bottle Tombola": "http://tiny.cc/Xmas12-13",
-    "Leads": "http://tiny.cc/LMSleads"
-  };
+  // Simple key store
+  const getKey = ()=> localStorage.getItem('lms_key') || '';
+  const setKey = k => localStorage.setItem('lms_key', k);
+  const clearKey = ()=> localStorage.removeItem('lms_key');
 
-  const TIME_ORDER = [
-    'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
-    '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
-  ];
-  const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
-
-  // ====== Elements ======
+  // Elements
   const $ = id => document.getElementById(id);
-  const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg'), app=$('app');
-  const globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
+  const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
+  const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
   const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
   const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
   const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
@@ -239,43 +200,44 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // ====== State ======
+  // State
   let meta={ stalls_meta:[], stalls:[], times:[], classes:[], descriptionsByStall:{} };
   let stallIndex=new Map(); let current={ stall:'', time:'' };
   let groups=[]; const selection=new Map(); let descMap = new Map();
 
-  // Password gate
+  // Gate
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
-  function openApp(){ gate.style.display='none'; app.style.display='block'; localStorage.setItem('lms_pw_ok','1'); }
-  gateBtn.addEventListener('click', ()=>{ if(gateInput.value===PASSWORD) openApp(); else gateMsg.textContent='Incorrect password'; });
+  function openApp(){ gate.style.display='none'; app.style.display='block'; }
 
-  // Fetch helper (with timeout/backoff)
+  gateBtn.addEventListener('click', async ()=>{
+    const entered = (gateInput.value||'').trim();
+    if(!entered){ gateMsg.textContent='Please enter the password'; return; }
+    // Probe API with key
+    const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
+    if(ping && ping.ok){ setKey(entered); openApp(); boot(); }
+    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
+  });
+
+  // Fetch with key + timeout/backoff
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
-  async function fetchJSON(url, opts={}, tries=3){
-    const cb = (url.includes('?')? '&':'?') + 'cb=' + Math.random().toString(36).slice(2);
-    const tIndex = 3 - tries;
-    const timeouts = [12000, 22000, 35000];
-    const to = timeouts[Math.min(tIndex, timeouts.length-1)];
+  async function fetchJSON(url, opts={}, keyOverride='', tries=3){
+    const key = keyOverride || getKey();
+    const joiner = url.includes('?') ? '&' : '?';
+    const withKey = url + joiner + 'key=' + encodeURIComponent(key) + '&cb=' + Math.random().toString(36).slice(2);
+    const tIndex = 3 - tries; const timeouts=[12000,22000,35000]; const to=timeouts[Math.min(tIndex, timeouts.length-1)];
     try{
-      const res = await Promise.race([
-        fetch(url+cb, {mode:'cors', redirect:'follow', keepalive:true, ...opts}),
-        timeout(to)
-      ]);
+      const res = await Promise.race([ fetch(withKey, {mode:'cors', redirect:'follow', keepalive:true, ...opts}), timeout(to) ]);
       const txt = await res.text();
-      try { return JSON.parse(txt); }
-      catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
+      try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
-      if(tries>1){
-        await new Promise(r=>setTimeout(r, 300 + Math.random()*500));
-        return fetchJSON(url, opts, tries-1);
-      }
+      if(tries>1){ await new Promise(r=>setTimeout(r, 300+Math.random()*600)); return fetchJSON(url, opts, keyOverride, tries-1); }
       showNetError(err, url);
       return { ok:false, error:String(err) };
     }
   }
   function showNetError(err, url){
     netErr.style.display='block';
-    const ping = url ? url.replace(/\?.*$/,'')+'?action=ping' : (API_BASE+'?action=ping');
+    const ping = (API_BASE+'?action=ping&key='+encodeURIComponent(getKey()));
     netErr.innerHTML = `Network error talking to the rota. Please check your Apps Script deployment.<br>
       <strong>Tip:</strong> Deploy as <em>Execute as: Me</em> and <em>Who has access: Anyone</em> (new version).<br>
       <a href="${ping}" target="_blank" rel="noopener">Test API (ping)</a><br>
@@ -314,33 +276,17 @@
   const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
   const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
-  function sectionOf(g){
-    if (isLead(g)) return 0;
-    if (isCoord(g)) return 1;
-    if (isDonationBake(g)) return 2;
-    return 3;
-  }
-  // Merge co-ordinators per (stall + time) so labels end with the real Time
+  function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
   function aggregateCoordinators(list){
     const keep=[], byKey=new Map();
     for(const g of list){
       if(!isCoord(g)){ keep.push(g); continue; }
       const key = `${g.stall}|${g.time||''}`;
       if(!byKey.has(key)){
-        byKey.set(key, {
-          group_id:`coord|${key}`,
-          stall:g.stall,
-          year_stall:g.stall,
-          role:'Stall co-ordinator',
-          time:g.time||'',
-          capacity:0, booked:0, remaining:0,
-          all_urns:[], available_urns:[]
-        });
+        byKey.set(key, { group_id:`coord|${key}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time||'', capacity:0, booked:0, remaining:0, all_urns:[], available_urns:[] });
       }
       const agg=byKey.get(key);
-      agg.capacity += g.capacity||0;
-      agg.booked   += g.booked||0;
-      agg.remaining= Math.max(0, agg.capacity - agg.booked);
+      agg.capacity += g.capacity||0; agg.booked += g.booked||0; agg.remaining = Math.max(0, agg.capacity-agg.booked);
       if(Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
       if(Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
     }
@@ -369,7 +315,7 @@
     });
     changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); });
 
-    const times=(meta.times||[]).slice().sort((a,b)=> tIdx(a)-tIdx(b) || a.localeCompare(b));
+    const times=(meta.times||[]).slice().sort();
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}">${t}</option>`).join('');
     timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
 
@@ -391,8 +337,7 @@
     p.set('action','slots');
     if(current.stall) p.set('stall', current.stall);
     if(current.time)  p.set('time',  current.time);
-    p.set('includeFull','1');
-    p.set('open','all');
+    p.set('includeFull','1'); // always include full; client toggle controls visibility
 
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
@@ -403,6 +348,11 @@
 
     const applyHide = g => !hideFilled.checked || (g.remaining||0)>0;
     const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
+    const TIME_ORDER = [
+      'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
+      '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
+    ];
+    const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
     list = list.filter(applyHide).sort((a,b)=>{
       const sa=sectionOf(a), sb=sectionOf(b);
@@ -488,7 +438,7 @@
   // Controls
   hideFilled.addEventListener('change', loadGroups);
 
-  // Submit handler
+  // Submit
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -500,7 +450,7 @@
     }
     const original=confirmBtn.textContent;
     confirmBtn.textContent='Please wait…'; confirmBtn.classList.add('wait'); confirmBtn.disabled=true;
-    const msgEl=document.getElementById('msg'); msgEl.style.color='#111'; msgEl.style.fontWeight='700';
+    msgEl.style.color='#111'; msgEl.style.fontWeight='700';
 
     const body = new URLSearchParams({
       first_name:firstName.value.trim(),
@@ -508,11 +458,11 @@
       email:email.value.trim(),
       mobile:mobile.value.trim(),
       child_class:childClass.value,
-      slot_ids: urns.join(',')
+      slot_ids: urns.join(','),
+      key: getKey() // send secret with POST
     }).toString();
 
     const res = await fetchJSON(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
-
     if(!res.ok){
       const err = String(res.error||'');
       const nice = /Some positions are no longer available/i.test(err)
@@ -524,24 +474,28 @@
       const m = err.match(/no longer available:\s*(.+)$/i);
       if(m){
         const conflicts = m[1].split(',').map(s=>s.trim());
-        for(const [id, val] of selection){
-          if(conflicts.includes(val.urn)) selection.delete(id);
-        }
+        for(const [id, val] of selection){ if(conflicts.includes(val.urn)) selection.delete(id); }
         render();
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
+      // WhatsApp links
+      const GROUP_LINKS = {
+        "Y7: Santa's Grotto": "http://tiny.cc/Xmas7",
+        "Y8 Mulled wine, Mince Pies & Hot Drinks": "http://tiny.cc/Xmas8",
+        "Y9: Bakery and Spin the Wheel": "http://tiny.cc/Xmas9",
+        "Y10: Books & Pre Loved Stall Rota": "http://tiny.cc/Xmas10",
+        "Y11: Teen Tombola": "http://tiny.cc/Xmas11",
+        "Y12/13 Vintage, Uniform & Bottle Tombola": "http://tiny.cc/Xmas12-13",
+        "Leads": "http://tiny.cc/LMSleads"
+      };
       const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
       const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
       const links = uniqueStalls.map(s => GROUP_LINKS[s]).filter(Boolean);
       if (hasLead && GROUP_LINKS['Leads']) links.push(GROUP_LINKS['Leads']);
-      const linksHtml = links.length
-        ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
-        : '—';
+      const linksHtml = links.length ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ') : '—';
 
-      selection.clear();
-      render();
-      confirmBtn.disabled = true;
+      selection.clear(); render(); confirmBtn.disabled = true;
 
       msgEl.innerHTML = `
         <div style="color:#111; font-weight:700">Thank you for volunteering!</div>
@@ -559,11 +513,9 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // Boot
-  (async function(){
+  // Boot flow
+  async function boot(){
     try{
-      if(localStorage.getItem('lms_pw_ok')!=='1'){ openGate(); return; }
-      openApp();
       await loadMeta();
       await loadSummary();
       await loadGroups();
@@ -572,6 +524,17 @@
       console.error(e);
       showNetError(e, API_BASE);
     }
+  }
+
+  // Start: if key already stored, try it; else show gate
+  (async function init(){
+    const stored = getKey();
+    if(stored){
+      const ping = await fetchJSON(API_BASE+'?action=ping');
+      if(ping && ping.ok){ openApp(); boot(); return; }
+      clearKey();
+    }
+    openGate();
   })();
 })();
 </script>
