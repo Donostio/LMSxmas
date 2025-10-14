@@ -82,7 +82,7 @@
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
-    <div class="muted" style="margin-bottom:10px">This page is for LMS PTA volunteers. If you don't have the password please ask in your class Whatsapp group.</div>
+    <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers.</div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
@@ -95,7 +95,7 @@
     <div class="hero-content">
       <div class="hero-text">
         <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-        <div class="hero-sub">Filter by year-group/time • Volunteer for a slot(s) • See remaining places - live</div>
+        <div class="hero-sub">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
       </div>
       <img class="hero-logo" src="images/PTAlogoH.png" alt="Lady Margaret School PTA" />
     </div>
@@ -195,6 +195,33 @@
     '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB',
     'N/A'
   ];
+
+  // Year-based WhatsApp links (robust to stall title edits)
+  const YEAR_LINKS = {
+    "Y7": "http://tiny.cc/Xmas7",
+    "Y8": "http://tiny.cc/Xmas8",
+    "Y9": "http://tiny.cc/Xmas9",
+    "Y10":"http://tiny.cc/Xmas10",
+    "Y11":"http://tiny.cc/Xmas11",
+    "Y12/13":"http://tiny.cc/Xmas12-13",
+    "Leads":"http://tiny.cc/LMSleads"
+  };
+  function extractYearKey(stallLabel){
+    const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
+    if (!m) return "";
+    let key = m[0].toUpperCase();
+    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
+    return key;
+  }
+  function linksForSelection(pickedLabels){
+    const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
+    const years = uniqueStalls.map(extractYearKey).filter(Boolean);
+    const links = [];
+    years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
+    const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
+    if (hasLead && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
+    return [...new Set(links)];
+  }
 
   // key storage
   const getKey = ()=> localStorage.getItem('lms_key') || '';
@@ -514,20 +541,11 @@
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      const GROUP_LINKS = {
-        "Y7: Santa's Grotto": "http://tiny.cc/Xmas7",
-        "Y8 Mulled wine, Mince Pies & Hot Drinks": "http://tiny.cc/Xmas8",
-        "Y9: Bakery and Spin the Wheel": "http://tiny.cc/Xmas9",
-        "Y10: Books & Pre Loved Stall Rota": "http://tiny.cc/Xmas10",
-        "Y11: Teen Tombola": "http://tiny.cc/Xmas11",
-        "Y12/13 Vintage, Uniform & Bottle Tombola": "http://tiny.cc/Xmas12-13",
-        "Leads": "http://tiny.cc/LMSleads"
-      };
-      const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
-      const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
-      const links = uniqueStalls.map(s => GROUP_LINKS[s]).filter(Boolean);
-      if (hasLead && GROUP_LINKS['Leads']) links.push(GROUP_LINKS['Leads']);
-      const linksHtml = links.length ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ') : '—';
+      // Build robust WhatsApp links based on year tokens in the selected labels
+      const links = linksForSelection(pickedLabels);
+      const linksHtml = links.length
+        ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
+        : '—';
 
       selection.clear(); render(); confirmBtn.disabled = true;
 
