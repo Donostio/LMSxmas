@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>LMS Christmas Fair — Volunteer sign-up</title>
 
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-09GP3CBRR8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-09GP3CBRR8');
+</script>
+
 <!-- 🎅 Santa emoji tab icon -->
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎅</text></svg>'>
 <link rel="apple-touch-icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><text y=".9em" font-size="160">🎅</text></svg>'>
@@ -210,7 +219,7 @@
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
     let key = m[0].toUpperCase();
-    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
+    if (key === 'Y12' || 'Y13' === key) key = 'Y12/13';
     return key;
   }
   function linksForSelection(pickedLabels){
