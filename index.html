@@ -106,7 +106,7 @@
     <div class="hero-content">
       <div class="hero-text">
         <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-        <div class="hero-sub">Filter by year/time • Volunteer for a slot(s) • See remaining places live</div>
+        <div class="hero-sub">y year-group/time • Volunteer for a slot(s) • See remaining places live</div>
       </div>
       <img class="hero-logo" src="images/PTAlogoH.png" alt="Lady Margaret School PTA" />
     </div>
@@ -575,11 +575,11 @@
       selection.clear(); render(); confirmBtn.disabled = true;
 
       msgEl.innerHTML = `
-        <div style="color:#111; font-weight:700">Thank you for volunteering!</div>
-        <div style="color:#111; font-weight:700; margin-top:6px">Make a note of what slots you have opted for:</div>
-        <ul style="color:#111; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
-        <div style="color:#111; font-weight:700; margin-top:6px">
-          And please join your volunteer group on WhatsApp now: ${linksHtml}
+        <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
+        <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
+        <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
+        <div style="color:#DC143C; font-weight:900; margin-top:6px">
+             Don't forget to join your volunteer group on WhatsApp! This is essential. Please click here now: ${linksHtml}
         </div>
       `;
 
