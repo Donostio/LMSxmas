@@ -91,7 +91,7 @@
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
-    <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers. If you don't have the password please ask in your form Whatsapp group.</div>
+    <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers.</div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
@@ -215,20 +215,36 @@
     "Y12/13":"http://tiny.cc/Xmas12-13",
     "Leads":"http://tiny.cc/LMSleads"
   };
+
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
     let key = m[0].toUpperCase();
-    if (key === 'Y12' || 'Y13' === key) key = 'Y12/13';
+    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
     return key;
   }
+
+  // Detectors for success-message link logic
+  const ROLE_COORD_RE = /^stall\s*co-?ordinator(?:\s*\d+)?$/i;
   function linksForSelection(pickedLabels){
+    // Years for the selected stalls
     const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
     const years = uniqueStalls.map(extractYearKey).filter(Boolean);
+
+    // Whether any selected role is a Lead or a Stall co-ordinator
+    const hasLead  = pickedLabels.some(l => /,\s*lead\b/i.test(l));
+    const hasCoord = pickedLabels.some(l => {
+      const parts = l.split(',').map(s=>s.trim());
+      const role  = parts[1] || '';
+      return ROLE_COORD_RE.test(role);
+    });
+
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
-    const hasLead = pickedLabels.some(l => /,\s*lead\b/i.test(l));
-    if (hasLead && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
+
+    // NEW: give Leads link to both Leads and Co-ordinators
+    if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
+
     return [...new Set(links)];
   }
 
@@ -550,7 +566,7 @@
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      // Build robust WhatsApp links based on year tokens in the selected labels
+      // Build robust WhatsApp links based on years + include Leads for Leads or Co-ordinators
       const links = linksForSelection(pickedLabels);
       const linksHtml = links.length
         ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
@@ -559,11 +575,11 @@
       selection.clear(); render(); confirmBtn.disabled = true;
 
       msgEl.innerHTML = `
-        <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
-        <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
-        <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
-        <div style="color:#DC143C; font-weight:900; margin-top:6px">
-             Don't forget to join your volunteer group on WhatsApp! This is essential. Please click here now: ${linksHtml}
+        <div style="color:#111; font-weight:700">Thank you for volunteering!</div>
+        <div style="color:#111; font-weight:700; margin-top:6px">Make a note of what slots you have opted for:</div>
+        <ul style="color:#111; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
+        <div style="color:#111; font-weight:700; margin-top:6px">
+          And please join your volunteer group on WhatsApp now: ${linksHtml}
         </div>
       `;
 
@@ -576,7 +592,7 @@
 
   // Boot flow
   async function boot(){
-    if(booted) return;       // ✅ No double-boot
+    if(booted) return;
     booted = true;
     try{
       await loadMeta();
