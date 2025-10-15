@@ -92,10 +92,10 @@
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
     <div class="muted" style="margin-bottom:10px">
-      This page is for LMS PTA volunteers. If you don't have the password please ask your Form Whatsapp.
+      This page is for LMS volunteers. If you don't have the password please ask in your Form Whatsapp group. Thank you.
     </div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
-    <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
+    <button id="gateBtn" type="button" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
   </div>
 </div>
@@ -199,7 +199,7 @@
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  // HARD-CODED CLASS LIST so it never appears blank
+  // HARD-CODED CLASS LIST
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
@@ -207,7 +207,7 @@
     'N/A'
   ];
 
-  // WhatsApp links (year groups + Leads)
+  // WhatsApp links (by year) + Leads
   const YEAR_LINKS = {
     "Y7": "http://tiny.cc/Xmas7",
     "Y8": "http://tiny.cc/Xmas8",
@@ -218,7 +218,7 @@
     "Leads":"http://tiny.cc/LMSleads"
   };
 
-  // --- helpers ---
+  // ---------- helpers ----------
   const $ = id => document.getElementById(id);
   const getKey = ()=> localStorage.getItem('lms_key') || '';
   const setKey = k => localStorage.setItem('lms_key', k);
@@ -232,23 +232,21 @@
     return key;
   }
 
-  // Minimal link logic (as you requested): detect co-ordinators/leads using SLOT (col D) and time.
+  // Link logic: detect co-ordinators/leads using SLOT (col D) and time.
   const SLOT_LEAD_RE  = /\blead\b/i;
-  const SLOT_COORD_RE = /\bco[-\s]?ordinator|coordinator\b/i;
+  const SLOT_COORD_RE = /\b(?:co[-\s]?ordinator|coordinator)\b/i;
 
   function linksForPicked(picked){
     const years = [...new Set(picked.map(p => extractYearKey(p.stall)).filter(Boolean))];
-
-    const hasLead = picked.some(p => p.time === 'Stall Lead' || SLOT_LEAD_RE.test(p.slot||''));
+    const hasLead  = picked.some(p => p.time === 'Stall Lead' || SLOT_LEAD_RE.test(p.slot||''));
     const hasCoord = picked.some(p => SLOT_COORD_RE.test(p.slot||''));
-
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
     return [...new Set(links)];
   }
 
-  // Prefer the descriptive Role (col C) over Slot (col D) when available
+  // Prefer the descriptive Role (col C) over Slot (col D)
   function roleTitle(g){
     const r = (g.role || '').trim();
     const s = (g.slot || '').trim();
@@ -291,7 +289,7 @@
   let groups=[]; const selection=new Map(); let descMap=new Map();
   let booted=false, listenersBound=false;
 
-  // gate
+  // ---------- Password gate ----------
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
   function showNetError(err){
@@ -303,13 +301,23 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  gateBtn.addEventListener('click', async ()=>{
+  async function tryLogin() {
     const entered = (gateInput.value||'').trim();
-    if(!entered){ gateMsg.textContent='Please enter the password'; return; }
+    if (!entered) { gateMsg.textContent = 'Please enter the password'; return; }
+    gateBtn.disabled = true; const prev = gateBtn.textContent; gateBtn.textContent = 'Checking…';
     const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
-    if(ping && ping.ok){ setKey(entered); openApp(); if(!booted) boot(); }
-    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
-  });
+    if (ping && ping.ok) {
+      setKey(entered); gateMsg.textContent=''; openApp(); if(!booted) boot();
+    } else {
+      gateMsg.textContent = ping && ping.error
+        ? `Couldn’t verify password (${ping.error}).`
+        : 'Incorrect password or network issue. Please try again.';
+      clearKey();
+    }
+    gateBtn.textContent = prev; gateBtn.disabled = false;
+  }
+  gateBtn.addEventListener('click', tryLogin);
+  gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ tryLogin(); }});
 
   // validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
@@ -342,10 +350,10 @@
   // grouping / ordering
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){
-    if (g.time === 'Stall Lead' || SLOT_LEAD_RE.test(g.slot||'')) return 0;       // Leads first
-    if (SLOT_COORD_RE.test(g.slot||'')) return 1;                                  // Co-ordinators next
-    if (isDonationBake(g)) return 2;                                               // Bakers
-    return 3;                                                                      // Timed roles
+    if (g.time === 'Stall Lead' || SLOT_LEAD_RE.test(g.slot||'')) return 0;
+    if (SLOT_COORD_RE.test(g.slot||'')) return 1;
+    if (isDonationBake(g)) return 2;
+    return 3;
   }
   function aggregateCoordinators(list){
     const keep=[], byKey=new Map();
@@ -516,7 +524,7 @@
         selection.set(id, {
           urn,
           stall: g.year_stall || g.stall || '',
-          role:  roleTitle(g),     // << use descriptive Role here
+          role:  roleTitle(g),
           slot:  g.slot || '',
           time:  g.time || ''
         });
@@ -581,13 +589,12 @@
 
       selection.clear(); render(); confirmBtn.disabled = true;
 
-      // keep your red/bold success message and wording
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
-        <div style="color:#DC143C; font-weight:700; margin-top:6px">Plesae note your slots - put in your calendar:</div>
+        <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
         <ul style="color:#DC143C; font-weight:700; margin-top:4px">${labels.map(l => `<li>${l}</li>`).join('')}</ul>
         <div style="color:#DC143C; font-weight:900; margin-top:6px">
-          It's esentail you join your volunteer group(s) on WhatsApp! Please thsi link(s) to do so now: ${linksHtml}
+          Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please click here now to do so: ${linksHtml}
         </div>
       `;
 
