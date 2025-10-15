@@ -64,7 +64,7 @@
   .progress{ height:14px; background:var(--badge); border:1px solid #e6ebf1; border-radius:10px; overflow:hidden; }
   .bar{ height:100%; background:var(--good); width:0%; }
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  @media(max-width: 640px){ .grid2{ grid-template-columns:1fr; } }
+  @media(max-width: 640px){ .grid2{ display:grid; grid-template-columns:1fr; gap:8px; } }
   ul{ margin:6px 0 0; padding-left:1rem; }
   .error{ color:var(--danger); font-weight:600; }
   .help{ font-size:12px; color:#6c757d; }
@@ -92,7 +92,7 @@
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
     <div class="muted" style="margin-bottom:10px">
-      This page is for LMS PTA volunteers. If you don't have the password please ask in your Form Whatsapp group. Thank you.
+      This page is for LMS PTA volunteers. If you don't have the password please ask your Form Whatsapp group. 
     </div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
@@ -106,7 +106,7 @@
     <div class="hero-content">
       <div class="hero-text">
         <h1>LMS Christmas Fair — Volunteer sign-up</h1>
-        <div class="hero-sub">y year-group/time • Volunteer for a slot(s) • See remaining places live</div>
+        <div class="hero-sub">Filter by year-group/time • Volunteer for a slot(s) • See remaining places live</div>
       </div>
       <img class="hero-logo" src="images/PTAlogoH.png" alt="Lady Margaret School PTA" />
     </div>
@@ -207,7 +207,7 @@
     'N/A'
   ];
 
-  // Year-based WhatsApp links (robust to stall title edits)
+  // WhatsApp links by year + Leads
   const YEAR_LINKS = {
     "Y7": "http://tiny.cc/Xmas7",
     "Y8": "http://tiny.cc/Xmas8",
@@ -226,23 +226,23 @@
     return key;
   }
 
-  // Robust role detectors
-  const ROLE_LEAD_RE   = /\blead\b/i;
-  // matches: "Stall co-ordinator", "Stall coordinator", "coordinator", "co-ordinator", optional numbers, any case
-  const ROLE_COORD_RE  = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
+  // More-bulletproof role checks
+  const ROLE_LEAD_RE  = /\blead\b/i;
+  const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
   function linksForSelection(pickedLabels){
-    // Unique stall display names
+    // Collect year links from each selected stall (first chunk before first comma)
     const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
-    // Year tokens
     const years = uniqueStalls.map(extractYearKey).filter(Boolean);
 
-    // If any selected role is Lead or Coordinator
-    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test((l.split(',')[1]||'').trim()));
-    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test((l.split(',')[1]||'').trim()));
+    // Consider entire label string for robustness (commas, spaces, etc.)
+    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
+    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
 
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
+
+    // Add Leads link for either Lead OR Stall co-ordinator roles
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
 
     return [...new Set(links)];
@@ -395,7 +395,7 @@
       listenersBound=true;
     }
 
-    // Populate time select without triggering change
+    // Populate time select
     const selectedTime = prevTime || '';
     const times=(meta.times||[]).slice().sort((a,b)=>a.localeCompare(b));
     const timeHtml = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===selectedTime?'selected':''}>${t}</option>`).join('');
@@ -405,13 +405,9 @@
     // Hard-coded classes (never blank)
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    // Restore stall chip state (collapse if previously chosen)
-    if(prevStall){
-      current.stall = prevStall;
-      collapseTo(prevStall);
-    }else{
-      expandAllChips();
-    }
+    // Restore stall chip state
+    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); }
+    else{ expandAllChips(); }
     renderStallDesc();
 
     filtersCard.style.display='block';
@@ -566,7 +562,6 @@
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      // Build robust WhatsApp links based on years + include Leads for Leads or Co-ordinators
       const links = linksForSelection(pickedLabels);
       const linksHtml = links.length
         ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
@@ -574,12 +569,13 @@
 
       selection.clear(); render(); confirmBtn.disabled = true;
 
+      // Keep your red/bold success message & wording
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
         <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
         <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
         <div style="color:#DC143C; font-weight:900; margin-top:6px">
-             Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please click here now to do so: ${linksHtml}
+          Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please use this link(s) to do so now: ${linksHtml}
         </div>
       `;
 
