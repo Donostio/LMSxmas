@@ -91,7 +91,9 @@
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
-    <div class="muted" style="margin-bottom:10px">This page is for LMS volunteers. If you don't have the password please ask in your Form Whatsapp group</div>
+    <div class="muted" style="margin-bottom:10px">
+      This page is for LMS volunteers. If you don't have the password please ask in your Form Whatsapp group. Thank you.
+    </div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
@@ -224,25 +226,23 @@
     return key;
   }
 
-  // Detectors for success-message link logic
-  const ROLE_COORD_RE = /^stall\s*co-?ordinator(?:\s*\d+)?$/i;
+  // Robust role detectors
+  const ROLE_LEAD_RE   = /\blead\b/i;
+  // matches: "Stall co-ordinator", "Stall coordinator", "coordinator", "co-ordinator", optional numbers, any case
+  const ROLE_COORD_RE  = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
+
   function linksForSelection(pickedLabels){
-    // Years for the selected stalls
+    // Unique stall display names
     const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
+    // Year tokens
     const years = uniqueStalls.map(extractYearKey).filter(Boolean);
 
-    // Whether any selected role is a Lead or a Stall co-ordinator
-    const hasLead  = pickedLabels.some(l => /,\s*lead\b/i.test(l));
-    const hasCoord = pickedLabels.some(l => {
-      const parts = l.split(',').map(s=>s.trim());
-      const role  = parts[1] || '';
-      return ROLE_COORD_RE.test(role);
-    });
+    // If any selected role is Lead or Coordinator
+    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test((l.split(',')[1]||'').trim()));
+    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test((l.split(',')[1]||'').trim()));
 
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
-
-    // NEW: give Leads link to both Leads and Co-ordinators
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
 
     return [...new Set(links)];
@@ -338,8 +338,8 @@
   }
 
   // Classifiers
-  const isLead = g => g.time==='Stall Lead' || /^lead$/i.test(g.role||'') || /lead$/i.test(g.role||'');
-  const isCoord = g => /^stall\s*co-?ordinator(?:\s*\d+)?$/i.test(g.role||'');
+  const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
+  const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
   function aggregateCoordinators(list){
