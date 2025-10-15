@@ -92,10 +92,10 @@
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
     <div class="muted" style="margin-bottom:10px">
-      This page is for LMS volunteers. If you don't have the password please ask in your Form Whatsapp group. Thank you.
+      This page is for LMS PTA volunteers. If you don't have the password please ask your Form Whatsapp. 
     </div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
-    <button id="gateBtn" type="button" class="btn" style="margin-top:10px; width:100%">Continue</button>
+    <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
     <div id="gateMsg" class="error" style="margin-top:8px"></div>
   </div>
 </div>
@@ -199,7 +199,7 @@
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  // HARD-CODED CLASS LIST
+  // HARD-CODED CLASS LIST so it never appears blank
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
@@ -207,7 +207,7 @@
     'N/A'
   ];
 
-  // WhatsApp links (by year) + Leads
+  // WhatsApp links by year + Leads
   const YEAR_LINKS = {
     "Y7": "http://tiny.cc/Xmas7",
     "Y8": "http://tiny.cc/Xmas8",
@@ -218,12 +218,6 @@
     "Leads":"http://tiny.cc/LMSleads"
   };
 
-  // ---------- helpers ----------
-  const $ = id => document.getElementById(id);
-  const getKey = ()=> localStorage.getItem('lms_key') || '';
-  const setKey = k => localStorage.setItem('lms_key', k);
-  const clearKey = ()=> localStorage.removeItem('lms_key');
-
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
@@ -232,29 +226,64 @@
     return key;
   }
 
-  // Link logic: detect co-ordinators/leads using SLOT (col D) and time.
-  const SLOT_LEAD_RE  = /\blead\b/i;
-  const SLOT_COORD_RE = /\b(?:co[-\s]?ordinator|coordinator)\b/i;
+  // More-bulletproof role checks
+  const ROLE_LEAD_RE  = /\blead\b/i;
+  const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
-  function linksForPicked(picked){
-    const years = [...new Set(picked.map(p => extractYearKey(p.stall)).filter(Boolean))];
-    const hasLead  = picked.some(p => p.time === 'Stall Lead' || SLOT_LEAD_RE.test(p.slot||''));
-    const hasCoord = picked.some(p => SLOT_COORD_RE.test(p.slot||''));
+  function linksForSelection(pickedLabels){
+    // Collect year links from each selected stall (first chunk before first comma)
+    const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
+    const years = uniqueStalls.map(extractYearKey).filter(Boolean);
+
+    // Consider entire label string for robustness (commas, spaces, etc.)
+    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
+    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
+
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
+
+    // Add Leads link for either Lead OR Stall co-ordinator roles
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
+
     return [...new Set(links)];
   }
 
-  // Prefer the descriptive Role (col C) over Slot (col D)
-  function roleTitle(g){
-    const r = (g.role || '').trim();
-    const s = (g.slot || '').trim();
-    if (r && (r.toLowerCase() !== s.toLowerCase() || /[-–—]/.test(r) || r.length > s.length)) return r;
-    return r || s || '';
-  }
+  // key storage
+  const getKey = ()=> localStorage.getItem('lms_key') || '';
+  const setKey = k => localStorage.setItem('lms_key', k);
+  const clearKey = ()=> localStorage.removeItem('lms_key');
 
-  // network
+  // Elements
+  const $ = id => document.getElementById(id);
+  const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
+  const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
+  const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
+  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
+  const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
+  const selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
+  const firstName=$('firstName'), lastName=$('lastName'), email=$('email'), mobile=$('mobile'), childClass=$('childClass');
+  const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
+  const summaryEl=$('summary'), debugEl=$('debug');
+
+  // State
+  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
+  let stallIndex=new Map(); let current={ stall:'', time:'' };
+  let groups=[]; const selection=new Map(); let descMap=new Map();
+  let booted=false, listenersBound=false;
+
+  // Gate
+  function openGate(){ gate.style.display='flex'; app.style.display='none'; }
+  function openApp(){ gate.style.display='none'; app.style.display='block'; }
+
+  gateBtn.addEventListener('click', async ()=>{
+    const entered = (gateInput.value||'').trim();
+    if(!entered){ gateMsg.textContent='Please enter the password'; return; }
+    const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
+    if(ping && ping.ok){ setKey(entered); openApp(); if(!booted) boot(); }
+    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
+  });
+
+  // Fetch with key + timeout/backoff
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
@@ -271,28 +300,7 @@
       return { ok:false, error:String(err) };
     }
   }
-
-  // elements
-  const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
-  const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
-  const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
-  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
-  const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
-  const selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
-  const firstName=$('firstName'), lastName=$('lastName'), email=$('email'), mobile=$('mobile'), childClass=$('childClass');
-  const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
-  const summaryEl=$('summary'), debugEl=$('debug');
-
-  // state
-  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
-  let stallIndex=new Map(); let current={ stall:'', time:'' };
-  let groups=[]; const selection=new Map(); let descMap=new Map();
-  let booted=false, listenersBound=false;
-
-  // ---------- Password gate ----------
-  function openGate(){ gate.style.display='flex'; app.style.display='none'; }
-  function openApp(){ gate.style.display='none'; app.style.display='block'; }
-  function showNetError(err){
+  function showNetError(err, url){
     netErr.style.display='block';
     const ping = (API_BASE+'?action=ping&key='+encodeURIComponent(getKey()));
     netErr.innerHTML = `Network error talking to the rota. Please check your Apps Script deployment.<br>
@@ -301,28 +309,7 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  // Optimistic login: show app immediately, verify in background.
-  async function tryLogin() {
-    const entered = (gateInput.value||'').trim();
-    if (!entered) { gateMsg.textContent = 'Please enter the password'; return; }
-
-    gateBtn.disabled = true; const prev = gateBtn.textContent; gateBtn.textContent = 'Loading…';
-    setKey(entered); gateMsg.textContent=''; openApp(); if(!booted) boot();
-
-    // Verify in background; if fails, bounce back to the gate.
-    const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
-    if (!(ping && ping.ok)) {
-      openGate();
-      gateMsg.textContent = (ping && ping.error) ? `Couldn’t verify password (${ping.error}).` : 'Incorrect password or network issue. Please try again.';
-      clearKey();
-    }
-
-    gateBtn.textContent = prev; gateBtn.disabled = false;
-  }
-  gateBtn.addEventListener('click', tryLogin);
-  gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ tryLogin(); }});
-
-  // validation
+  // Validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -350,23 +337,18 @@
     stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group stall to see details here.';
   }
 
-  // grouping / ordering
+  // Classifiers
+  const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
+  const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
-  function sectionOf(g){
-    if (g.time === 'Stall Lead' || SLOT_LEAD_RE.test(g.slot||'')) return 0;
-    if (SLOT_COORD_RE.test(g.slot||'')) return 1;
-    if (isDonationBake(g)) return 2;
-    return 3;
-  }
+  function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
   function aggregateCoordinators(list){
     const keep=[], byKey=new Map();
     for(const g of list){
-      if(!SLOT_COORD_RE.test(g.slot||'')){ keep.push(g); continue; }
+      if(!isCoord(g)){ keep.push(g); continue; }
       const key = `${g.stall}|${g.time||''}`;
       if(!byKey.has(key)){
-        byKey.set(key, { group_id:`coord|${key}`, stall:g.stall, year_stall:g.stall,
-          role:'Stall co-ordinator', slot:g.slot||'', time:g.time||'',
-          capacity:0, booked:0, remaining:0, all_urns:[], available_urns:[] });
+        byKey.set(key, { group_id:`coord|${key}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time||'', capacity:0, booked:0, remaining:0, all_urns:[], available_urns:[] });
       }
       const agg=byKey.get(key);
       agg.capacity += g.capacity||0; agg.booked += g.booked||0; agg.remaining = Math.max(0, agg.capacity-agg.booked);
@@ -381,20 +363,20 @@
     return ns.length ? Math.min(...ns) : 999999;
   };
 
-  // meta
-  let stallIndex=new Map(); let descMap=new Map();
-
+  // Loads
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
     meta=data;
 
+    // Preserve existing selection/time
     const prevStall = current.stall;
     const prevTime  = current.time;
 
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
 
+    // Build chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
 
     if(!listenersBound){
@@ -413,14 +395,19 @@
       listenersBound=true;
     }
 
+    // Populate time select
     const selectedTime = prevTime || '';
     const times=(meta.times||[]).slice().sort((a,b)=>a.localeCompare(b));
-    timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===selectedTime?'selected':''}>${t}</option>`).join('');
+    const timeHtml = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===selectedTime?'selected':''}>${t}</option>`).join('');
+    timeSelect.innerHTML = timeHtml;
     current.time = selectedTime;
 
+    // Hard-coded classes (never blank)
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); } else { expandAllChips(); }
+    // Restore stall chip state
+    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); }
+    else{ expandAllChips(); }
     renderStallDesc();
 
     filtersCard.style.display='block';
@@ -481,7 +468,7 @@
     }).join('');
   }
 
-  // render UI
+  // Render
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -499,7 +486,7 @@
       const bookedTxt = `<span class="muted" style="margin-right:8px">${g.booked||0} booked</span>`;
       html += `<div class="slot" data-id="${g.group_id}">
         <div>
-          <div><strong>${roleTitle(g)}</strong></div>
+          <div><strong>${g.role||''}</strong></div>
           <div class="muted">${g.stall}${(g.time && sec!==3)?` • ${g.time}`:''}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap">
@@ -523,35 +510,25 @@
           formBanner.style.display='block';
           return;
         }
-        const urn = g.available_urns[0];
-        selection.set(id, {
-          urn,
-          stall: g.year_stall || g.stall || '',
-          role:  roleTitle(g),
-          slot:  g.slot || '',
-          time:  g.time || ''
-        });
+        const urn=g.available_urns[0];
+        selection.set(id, { urn, label: `${g.year_stall}, ${g.role}, ${g.time || ''}` });
         render();
       });
     });
 
     const items=[...selection.values()];
-    selectedEl.innerHTML = items.length
-      ? `<ul>${items.map(it=>`<li>${it.stall}, ${it.role}, ${it.time}</li>`).join('')}</ul>`
-      : '<div class="muted">No positions selected yet.</div>';
+    selectedEl.innerHTML = items.length ? `<ul>${items.map(it=>`<li>${it.label}</li>`).join('')}</ul>` : '<div class="muted">No positions selected yet.</div>';
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // submit
+  // Submit
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
+    const urns=[...selection.values()].map(v=>v.urn);
+    const pickedLabels=[...selection.values()].map(v=>v.label);
 
-    const picked = [...selection.values()];
-    const urns = picked.map(v => v.urn);
-    const labels = picked.map(v => `${v.stall}, ${v.role}, ${v.time || ''}`);
-
-    if(!validateForm() || picked.length===0){
-      formBanner.textContent = picked.length===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
+    if(!validateForm() || selection.size===0){
+      formBanner.textContent = selection.size===0 ? 'Please select at least one position.' : 'Please correct the highlighted fields.';
       formBanner.style.display='block'; confirmBtn.disabled = true; return;
     }
     const original=confirmBtn.textContent;
@@ -585,19 +562,20 @@
       }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
-      const links = linksForPicked(picked);
+      const links = linksForSelection(pickedLabels);
       const linksHtml = links.length
         ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
         : '—';
 
       selection.clear(); render(); confirmBtn.disabled = true;
 
+      // Keep your red/bold success message & wording
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
         <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
-        <ul style="color:#DC143C; font-weight:700; margin-top:4px">${labels.map(l => `<li>${l}</li>`).join('')}</ul>
+        <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
         <div style="color:#DC143C; font-weight:900; margin-top:6px">
-          Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please click here now to do so: ${linksHtml}
+          Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please use this link(s) to do so now: ${linksHtml}
         </div>
       `;
 
@@ -608,7 +586,7 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // boot
+  // Boot flow
   async function boot(){
     if(booted) return;
     booted = true;
@@ -620,19 +598,17 @@
     }catch(e){
       debugEl.textContent = 'Startup error: ' + e.message;
       console.error(e);
-      showNetError(e);
+      showNetError(e, API_BASE);
     }
   }
 
-  // init
+  // Start: if key already stored, try it; else show gate
   (async function init(){
     const stored = getKey();
     if(stored){
-      // Optimistically boot; background ping will re-open gate if wrong.
-      openApp(); boot();
       const ping = await fetchJSON(API_BASE+'?action=ping');
-      if(!(ping && ping.ok)){ openGate(); clearKey(); gateMsg.textContent='Password expired or incorrect. Please enter it again.'; }
-      return;
+      if(ping && ping.ok){ openApp(); boot(); return; }
+      clearKey();
     }
     openGate();
   })();
