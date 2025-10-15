@@ -301,19 +301,22 @@
       <span class="error">${String(err)}</span>`;
   }
 
+  // Optimistic login: show app immediately, verify in background.
   async function tryLogin() {
     const entered = (gateInput.value||'').trim();
     if (!entered) { gateMsg.textContent = 'Please enter the password'; return; }
-    gateBtn.disabled = true; const prev = gateBtn.textContent; gateBtn.textContent = 'Checking…';
+
+    gateBtn.disabled = true; const prev = gateBtn.textContent; gateBtn.textContent = 'Loading…';
+    setKey(entered); gateMsg.textContent=''; openApp(); if(!booted) boot();
+
+    // Verify in background; if fails, bounce back to the gate.
     const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
-    if (ping && ping.ok) {
-      setKey(entered); gateMsg.textContent=''; openApp(); if(!booted) boot();
-    } else {
-      gateMsg.textContent = ping && ping.error
-        ? `Couldn’t verify password (${ping.error}).`
-        : 'Incorrect password or network issue. Please try again.';
+    if (!(ping && ping.ok)) {
+      openGate();
+      gateMsg.textContent = (ping && ping.error) ? `Couldn’t verify password (${ping.error}).` : 'Incorrect password or network issue. Please try again.';
       clearKey();
     }
+
     gateBtn.textContent = prev; gateBtn.disabled = false;
   }
   gateBtn.addEventListener('click', tryLogin);
@@ -625,9 +628,11 @@
   (async function init(){
     const stored = getKey();
     if(stored){
+      // Optimistically boot; background ping will re-open gate if wrong.
+      openApp(); boot();
       const ping = await fetchJSON(API_BASE+'?action=ping');
-      if(ping && ping.ok){ openApp(); boot(); return; }
-      clearKey();
+      if(!(ping && ping.ok)){ openGate(); clearKey(); gateMsg.textContent='Password expired or incorrect. Please enter it again.'; }
+      return;
     }
     openGate();
   })();
