@@ -559,11 +559,11 @@
       selection.clear(); render(); confirmBtn.disabled = true;
 
       msgEl.innerHTML = `
-        <div style="color:#111; font-weight:700">Thank you for volunteering!</div>
-        <div style="color:#111; font-weight:700; margin-top:6px">Make a note of what slots you have opted for:</div>
-        <ul style="color:#111; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
-        <div style="color:#111; font-weight:700; margin-top:6px">
-          And please join your volunteer group on WhatsApp now: ${linksHtml}
+        <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
+        <div style="color:#DC143C; font-weight:700; margin-top:6px">Thank you! Note down your slots - put it in your calendar now:</div>
+        <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
+        <div style="color:#DC143C; font-weight:900; margin-top:6px">
+             Don't forget to join your volunteer group on WhatsApp! This is essential. Please click here now: ${linksHtml}
         </div>
       `;
 
