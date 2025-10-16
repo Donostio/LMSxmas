@@ -342,21 +342,56 @@
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
-  function aggregateCoordinators(list){
-    const keep=[], byKey=new Map();
-    for(const g of list){
-      if(!isCoord(g)){ keep.push(g); continue; }
-      const key = `${g.stall}|${g.time||''}`;
-      if(!byKey.has(key)){
-        byKey.set(key, { group_id:`coord|${key}`, stall:g.stall, year_stall:g.stall, role:'Stall co-ordinator', time:g.time||'', capacity:0, booked:0, remaining:0, all_urns:[], available_urns:[] });
-      }
-      const agg=byKey.get(key);
-      agg.capacity += g.capacity||0; agg.booked += g.booked||0; agg.remaining = Math.max(0, agg.capacity-agg.booked);
-      if(Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
-      if(Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+// Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
+function aggregateCoordinators(list){
+  const keep = [], byKey = new Map();
+
+  // normalise for stable keys (dash variants / extra spaces)
+  const norm = s => String(s || '')
+    .replace(/[–—]/g, '-')   // en/em dash -> hyphen
+    .replace(/\s+/g, ' ')    // collapse whitespace
+    .trim();
+
+  for (const g of list){
+    // Use your existing isCoord(g) – DO NOT reference new globals
+    if (!isCoord(g)) { 
+      keep.push(g); 
+      continue; 
     }
-    return { others:keep, coords:Array.from(byKey.values()) };
+
+    // Include ROLE in the key so “Stall co-ordinator – Grotto/Books/…” don’t get merged
+    const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
+    const timeKey  = norm(g.time || '');
+    const stallKey = norm(g.stall || '');
+    const key = `${stallKey}|${timeKey}|${roleKey}`;
+
+    if (!byKey.has(key)){
+      byKey.set(key, {
+        group_id: `coord|${key}`,
+        stall: g.stall,
+        year_stall: g.stall,
+        role: roleKey,              // show the full suffixed role on the card
+        slot: g.slot || '',
+        time: g.time || '',
+        capacity: 0,
+        booked: 0,
+        remaining: 0,
+        all_urns: [],
+        available_urns: []
+      });
+    }
+
+    const agg = byKey.get(key);
+    agg.capacity  += (g.capacity || 0);
+    agg.booked    += (g.booked   || 0);
+    agg.remaining  = Math.max(0, agg.capacity - agg.booked);
+    if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+    if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
   }
+
+  return { others: keep, coords: Array.from(byKey.values()) };
+}
+
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
     const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
