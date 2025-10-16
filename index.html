@@ -265,6 +265,23 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
+  // --- URL filter helpers (NEW) ---
+  function readFiltersFromURL() {
+    const q = new URLSearchParams(location.search);
+    const stall = q.get('stall') || '';
+    const time  = q.get('time')  || '';
+    const hide  = q.get('hide')  || ''; // '1' means hide fully booked
+    return { stall, time, hideFilled: hide === '1' };
+  }
+  function syncURL() {
+    const q = new URLSearchParams(location.search);
+    if (current.stall) q.set('stall', current.stall); else q.delete('stall');
+    if (current.time)  q.set('time',  current.time);  else q.delete('time');
+    if (hideFilled.checked) q.set('hide','1'); else q.delete('hide');
+    const newUrl = `${location.pathname}?${q.toString()}${location.hash}`;
+    history.replaceState(null, '', newUrl);
+  }
+
   // State
   let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
   let stallIndex=new Map(); let current={ stall:'', time:'' };
@@ -342,55 +359,41 @@
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
-// Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
-function aggregateCoordinators(list){
-  const keep = [], byKey = new Map();
 
-  // normalise for stable keys (dash variants / extra spaces)
-  const norm = s => String(s || '')
-    .replace(/[–—]/g, '-')   // en/em dash -> hyphen
-    .replace(/\s+/g, ' ')    // collapse whitespace
-    .trim();
-
-  for (const g of list){
-    // Use your existing isCoord(g) – DO NOT reference new globals
-    if (!isCoord(g)) { 
-      keep.push(g); 
-      continue; 
+  // Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
+  function aggregateCoordinators(list){
+    const keep = [], byKey = new Map();
+    const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+    for (const g of list){
+      if (!isCoord(g)) { keep.push(g); continue; }
+      const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
+      const timeKey  = norm(g.time || '');
+      const stallKey = norm(g.stall || '');
+      const key = `${stallKey}|${timeKey}|${roleKey}`;
+      if (!byKey.has(key)){
+        byKey.set(key, {
+          group_id: `coord|${key}`,
+          stall: g.stall,
+          year_stall: g.stall,
+          role: roleKey,
+          slot: g.slot || '',
+          time: g.time || '',
+          capacity: 0,
+          booked: 0,
+          remaining: 0,
+          all_urns: [],
+          available_urns: []
+        });
+      }
+      const agg = byKey.get(key);
+      agg.capacity  += (g.capacity || 0);
+      agg.booked    += (g.booked   || 0);
+      agg.remaining  = Math.max(0, agg.capacity - agg.booked);
+      if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+      if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
     }
-
-    // Include ROLE in the key so “Stall co-ordinator – Grotto/Books/…” don’t get merged
-    const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
-    const timeKey  = norm(g.time || '');
-    const stallKey = norm(g.stall || '');
-    const key = `${stallKey}|${timeKey}|${roleKey}`;
-
-    if (!byKey.has(key)){
-      byKey.set(key, {
-        group_id: `coord|${key}`,
-        stall: g.stall,
-        year_stall: g.stall,
-        role: roleKey,              // show the full suffixed role on the card
-        slot: g.slot || '',
-        time: g.time || '',
-        capacity: 0,
-        booked: 0,
-        remaining: 0,
-        all_urns: [],
-        available_urns: []
-      });
-    }
-
-    const agg = byKey.get(key);
-    agg.capacity  += (g.capacity || 0);
-    agg.booked    += (g.booked   || 0);
-    agg.remaining  = Math.max(0, agg.capacity - agg.booked);
-    if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
-    if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+    return { others: keep, coords: Array.from(byKey.values()) };
   }
-
-  return { others: keep, coords: Array.from(byKey.values()) };
-}
 
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
@@ -422,11 +425,23 @@ function aggregateCoordinators(list){
         if(isActive){ current.stall=''; expandAllChips(); }
         else{ current.stall=s; collapseTo(s); }
         renderStallDesc();
+        syncURL();              /* NEW */
         loadGroups();
       });
-      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); loadGroups(); });
-      timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
-      hideFilled.addEventListener('change', loadGroups);
+      changeYear.addEventListener('click', ()=>{
+        current.stall=''; expandAllChips(); renderStallDesc();
+        syncURL();              /* NEW */
+        loadGroups();
+      });
+      timeSelect.addEventListener('change',()=>{
+        current.time=timeSelect.value;
+        syncURL();              /* NEW */
+        loadGroups();
+      });
+      hideFilled.addEventListener('change', ()=>{
+        syncURL();              /* NEW */
+        loadGroups();
+      });
       listenersBound=true;
     }
 
@@ -447,6 +462,11 @@ function aggregateCoordinators(list){
 
     filtersCard.style.display='block';
     toolbar.style.display='flex';
+
+    // Apply initial hide flag from URL and sync (NEW)
+    const initial = readFiltersFromURL();
+    hideFilled.checked = !!initial.hideFilled;
+    syncURL();
   }
 
   async function loadGroups(){
@@ -640,6 +660,12 @@ function aggregateCoordinators(list){
   // Start: if key already stored, try it; else show gate
   (async function init(){
     const stored = getKey();
+
+    // NEW: preload filters from URL so boot()/loadMeta() preserve them
+    const initial = readFiltersFromURL();
+    if (initial.stall) current.stall = initial.stall;
+    if (initial.time)  current.time  = initial.time;
+
     if(stored){
       const ping = await fetchJSON(API_BASE+'?action=ping');
       if(ping && ping.ok){ openApp(); boot(); return; }
