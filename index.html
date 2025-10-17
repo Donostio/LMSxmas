@@ -27,7 +27,7 @@
   .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
   h1{ font-size:28px; margin:0 0 6px; }
 
-  /* hero, layout, forms … unchanged from your latest */
+  /* HERO */
   .hero{ position:relative; border-radius:16px; overflow:hidden; border:1px solid #e6ebf1;
     background:#022a31 url("images/BG.png") center/cover no-repeat; min-height:120px; }
   .hero::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.25)); }
@@ -87,7 +87,7 @@
 </style>
 </head>
 <body>
-<!-- Password gate (unchanged) -->
+<!-- Password gate -->
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -125,7 +125,7 @@
       </div>
       <div class="right">
         <div style="font-weight:600; margin-bottom:6px">Your year-group</div>
-        <div id="stallDesc" class="desc">Choose a year-group to your stalls.</div>
+        <div id="stallDesc" class="desc">Choose a year-group to see your stalls.</div>
       </div>
     </div>
   </div>
@@ -142,7 +142,6 @@
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
             <select id="timeSelect"></select>
           </label>
-          <!-- NEW: Sub-stall filter -->
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Stall
             <select id="subSelect"></select>
           </label>
@@ -153,7 +152,6 @@
       <div id="slotsLoading" class="loading mega" style="display:none"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
     </div>
 
-    <!-- Right column (unchanged) -->
     <div class="panel">
       <div class="card">
         <strong>My details</strong>
@@ -202,7 +200,7 @@
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  /* class list + links unchanged from your latest */
+  /* Class list + WhatsApp links (unchanged) */
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
@@ -210,29 +208,77 @@
   ];
   const YEAR_LINKS = {"Y7":"http://tiny.cc/Xmas7","Y8":"http://tiny.cc/Xmas8","Y9":"http://tiny.cc/Xmas9","Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13","Leads":"http://tiny.cc/LMSleads"};
 
-  // --- NEW: Sub-stall  options + matching map (handles the '&' inclusion rule) ---
+  /* Sub-stall options + mapping to Year-Stall (chip) text */
   const SUB_OPTIONS = [
     '','Y7 Grotto','Y8 Pies and hot drinks','Y9 Bakery','Y9 Spin the Wheel',
-    'Y10 Books','Y10 Pre-Loved','Y11 Teen Tombola','Y12-13 Bottle Tombola','Y12-13 Uniform','Y12-13 Vintage'
+    'Y10 Books','Y10 Pre-Loved','Y11 Teen Tombola',
+    'Y12-13 Bottle Tombola','Y12-13 Uniform','Y12-13 Vintage'
   ];
-  const SUB_MATCH = {
-    'Y9 Bakery': ['Y9 Bakery','Y9 Bakery & spin the wheel'],
-    'Y9 Spin the Wheel': ['Y9 Spin the Wheel','Y9 Bakery & spin the wheel'],
-    'Y10 Books': ['Y10 Books','Y10 Pre-Loved & Books'],
-    'Y10 Pre-Loved': ['Y10 Pre-Loved','Y10 Pre-Loved & Books']
-    // others match 1:1 by their exact text
+  const SUB_TO_YEARSTALL = {
+    'Y7 Grotto': "Y7: Santa's Grotto",
+    'Y8 Pies and hot drinks': "Y8 Mulled wine, Mince Pies & Hot Drinks",
+    'Y9 Bakery': "Y9: Bakery and Spin the Wheel",
+    'Y9 Spin the Wheel': "Y9: Bakery and Spin the Wheel",
+    'Y10 Books': "Y10: Books & Pre Loved Stall",
+    'Y10 Pre-Loved': "Y10: Books & Pre Loved Stall",
+    'Y11 Teen Tombola': "Y11: Teen Tombola",
+    'Y12-13 Bottle Tombola': "Y12/13 Vintage, Uniform & Bottle Tombola",
+    'Y12-13 Uniform': "Y12/13 Vintage, Uniform & Bottle Tombola",
+    'Y12-13 Vintage': "Y12/13 Vintage, Uniform & Bottle Tombola",
   };
-  function subMatches(rowSub, selected){
-    if (!selected) return true;
-    const list = SUB_MATCH[selected] || [selected];
-    return list.includes(String(rowSub||''));
+  const YEAR_OF_SUB = {
+    'Y7 Grotto':'Y7','Y8 Pies and hot drinks':'Y8',
+    'Y9 Bakery':'Y9','Y9 Spin the Wheel':'Y9',
+    'Y10 Books':'Y10','Y10 Pre-Loved':'Y10',
+    'Y11 Teen Tombola':'Y11',
+    'Y12-13 Bottle Tombola':'Y12/13','Y12-13 Uniform':'Y12/13','Y12-13 Vintage':'Y12/13'
+  };
+  function optionsForYear(year){
+    return SUB_OPTIONS.filter(s => !s || YEAR_OF_SUB[s]===year);
   }
-  // ---------------------------------------------------------------------------
 
-  // ✅ Regex constants (fixed; no stray text after /i)
+  /* Matching: keep combined labels only with the right half based on ROLE text */
+  function subMatches(rowSub, role, selected){
+    if (!selected) return true;
+    const sub = String(rowSub||'').trim();
+    if (selected==='Y9 Bakery'){
+      if (sub==='Y9 Bakery') return true;
+      if (sub==='Y9 Bakery & spin the wheel') {
+        // only if the role is a baking thing, not spin
+        return /bake|cake|biscuit/i.test(role||'') && !/spin/i.test(role||'');
+      }
+      return false;
+    }
+    if (selected==='Y9 Spin the Wheel'){
+      if (sub==='Y9 Spin the Wheel') return true;
+      if (sub==='Y9 Bakery & spin the wheel') {
+        return /spin/i.test(role||'');
+      }
+      return false;
+    }
+    if (selected==='Y10 Books'){
+      if (sub==='Y10 Books') return true;
+      if (sub==='Y10 Pre-Loved & Books'){
+        return /book/i.test(role||'');
+      }
+      return false;
+    }
+    if (selected==='Y10 Pre-Loved'){
+      if (sub==='Y10 Pre-Loved') return true;
+      if (sub==='Y10 Pre-Loved & Books'){
+        return /pre[-\s]?loved|uniform|vintage|donat/i.test(role||'') && !/book/i.test(role||'');
+      }
+      return false;
+    }
+    // everyone else exact match
+    return sub === selected;
+  }
+
+  /* Role regex (unchanged) */
   const ROLE_LEAD_RE  = /\blead\b/i;
   const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
+  /* key storage + elements */
   const getKey = ()=> localStorage.getItem('lms_key') || '';
   const setKey = k => localStorage.setItem('lms_key', k);
   const clearKey = ()=> localStorage.removeItem('lms_key');
@@ -248,15 +294,10 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // URL sync (extended with ?sub=)
+  /* URL sync (kept) */
   function readFiltersFromURL() {
     const q = new URLSearchParams(location.search);
-    return {
-      stall: q.get('stall') || '',
-      time : q.get('time')  || '',
-      sub  : q.get('sub')   || '',
-      hideFilled: q.get('hide') === '1'
-    };
+    return { stall:q.get('stall')||'', time:q.get('time')||'', sub:q.get('sub')||'', hideFilled:q.get('hide')==='1' };
   }
   function syncURL() {
     const q = new URLSearchParams(location.search);
@@ -267,13 +308,13 @@
     history.replaceState(null, '', `${location.pathname}?${q.toString()}${location.hash}`);
   }
 
-  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{}, subStalls:[] };
-  let stallIndex=new Map(); 
+  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
+  let stallIndex=new Map();
   let current={ stall:'', time:'', sub:'' };
   let groups=[]; const selection=new Map(); let descMap=new Map();
   let booted=false, listenersBound=false;
 
-  // gate
+  /* Gate */
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
   gateBtn.addEventListener('click', async ()=>{
@@ -284,6 +325,7 @@
     else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
   });
 
+  /* fetch helpers (unchanged) */
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
@@ -296,8 +338,7 @@
       try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
       if(tries>1){ await new Promise(r=>setTimeout(r, 300+Math.random()*600)); return fetchJSON(url, opts, keyOverride, tries-1); }
-      showNetError(err, url);
-      return { ok:false, error:String(err) };
+      showNetError(err); return { ok:false, error:String(err) };
     }
   }
   function showNetError(err){
@@ -309,6 +350,7 @@
       <span class="error">${String(err)}</span>`;
   }
 
+  /* form validation (unchanged) */
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -319,6 +361,7 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
+  /* Chips collapse/expand (unchanged) */
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -335,11 +378,11 @@
     stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group to see what they\'re doing.';
   }
 
+  /* Classifiers + coordinator aggregation (unchanged behaviour) */
   const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
-
   function aggregateCoordinators(list){
     const keep = [], byKey = new Map();
     const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
@@ -375,13 +418,13 @@
     }
     return { others: keep, coords: Array.from(byKey.values()) };
   }
-
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
     const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
     return ns.length ? Math.min(...ns) : 999999;
   };
 
+  /* Loaders */
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
@@ -391,7 +434,7 @@
 
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
-
+    // Build chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
 
     if(!listenersBound){
@@ -399,14 +442,40 @@
         const chip=e.target.closest('.chip'); if(!chip) return;
         const s=chip.dataset.stall;
         const isActive = chip.classList.contains('active');
-        if(isActive){ current.stall=''; expandAllChips(); }
-        else{ current.stall=s; collapseTo(s); }
+        if(isActive){ current.stall=''; current.sub=''; subSelect.value=''; expandAllChips(); }
+        else{
+          current.stall=s; collapseTo(s);
+          // when a year is chosen, limit sub options to that year
+          const year = (s.match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/)||[''])[0];
+          const opts = optionsForYear(year);
+          subSelect.innerHTML = opts.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+          current.sub=''; // clear sub when changing year
+        }
         renderStallDesc(); syncURL(); loadGroups();
       });
-      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); syncURL(); loadGroups(); });
+      changeYear.addEventListener('click', ()=>{
+        current.stall=''; current.sub=''; subSelect.innerHTML = SUB_OPTIONS.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+        expandAllChips(); renderStallDesc(); syncURL(); loadGroups();
+      });
       timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; syncURL(); loadGroups(); });
       hideFilled.addEventListener('change', ()=>{ syncURL(); loadGroups(); });
-      subSelect.addEventListener('change', ()=>{ current.sub=subSelect.value; syncURL(); loadGroups(); });
+      subSelect.addEventListener('change', ()=>{
+        current.sub=subSelect.value;
+        // selecting a sub-stall auto-sets/locks the year chip
+        if (current.sub){
+          const stallForYear = SUB_TO_YEARSTALL[current.sub];
+          if (stallForYear){
+            current.stall = stallForYear;
+            collapseTo(stallForYear);
+            // restrict dropdown to that year
+            const year = YEAR_OF_SUB[current.sub];
+            const opts = optionsForYear(year);
+            subSelect.innerHTML = opts.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+            subSelect.value = current.sub;
+          }
+        }
+        syncURL(); loadGroups();
+      });
       listenersBound=true;
     }
 
@@ -415,13 +484,14 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===prevTime?'selected':''}>${t}</option>`).join('');
     current.time = prevTime || '';
 
-    // Sub-stall dropdown (use fixed options list; it covers your mapping cleanly)
+    // Sub-stall dropdown (full set initially)
     subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All stalls'}</option>`).join('');
     subSelect.value = prevSub || '';
 
     // Classes
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
+    // Restore chip if present
     if(prevStall){ current.stall = prevStall; collapseTo(prevStall); } else { expandAllChips(); }
     renderStallDesc();
 
@@ -430,7 +500,11 @@
 
     const initial = readFiltersFromURL();
     hideFilled.checked = !!initial.hideFilled;
-    if (initial.sub) { current.sub = initial.sub; subSelect.value = initial.sub; }
+    if (initial.sub) {
+      current.sub = initial.sub; subSelect.value = initial.sub;
+      const stallForYear = SUB_TO_YEARSTALL[current.sub];
+      if (stallForYear){ current.stall = stallForYear; collapseTo(stallForYear); }
+    }
     syncURL();
   }
 
@@ -448,8 +522,9 @@
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
 
-    // client-side sub-stall filter (handles & mapping)
-    let list=(data.data||[]).filter(g => subMatches(g.sub_stall, current.sub));
+    let list=(data.data||[]).slice();
+    // apply sub-stall filter with refined combo logic
+    if (current.sub) list = list.filter(g => subMatches(g.sub_stall, g.role, current.sub));
 
     const { others, coords } = aggregateCoordinators(list);
     list=[...others, ...coords];
@@ -490,6 +565,7 @@
     }).join('');
   }
 
+  /* Roster rendering (unchanged) */
   function getRoster(g){
     if (/\bstudent\b/i.test(g.role||'')) return '';
     const candidates = [g.roster, g.booked_names, g.booked_list, g.signups, g.bookedDetails];
@@ -505,6 +581,7 @@
     return lines.length ? `<div class="roster">${lines.join('<br>')}</div>` : '';
   }
 
+  /* Render (unchanged except it calls getRoster) */
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -560,6 +637,7 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
+  /* WhatsApp links + submit (unchanged) */
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
@@ -577,7 +655,6 @@
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
     return [...new Set(links)];
   }
-
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -624,12 +701,14 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
+  /* Boot */
+  async function loadSummary(){ /* already above, keep order */ }
   async function boot(){
     if(booted) return; booted = true;
-    try{ await loadMeta(); await loadSummary(); await loadGroups(); app.style.display='block'; }
-    catch(e){ debugEl.textContent = 'Startup error: ' + e.message; console.error(e); showNetError(e); }
+    try{
+      await loadMeta(); await loadSummary(); await loadGroups(); app.style.display='block';
+    }catch(e){ debugEl.textContent = 'Startup error: ' + e.message; console.error(e); showNetError(e); }
   }
-
   (async function init(){
     const stored = getKey();
     const initial = readFiltersFromURL();
