@@ -83,6 +83,10 @@
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   .desc{ white-space:pre-wrap; color:#111; }
   .linkbtn{ background:none; border:none; color:#1877c9; text-decoration:underline; cursor:pointer; padding:0; margin-top:8px; font:inherit; }
+
+  /* NEW: booked names on cards */
+  .roster{ margin-top:6px; font-size:12px; color:#9aa0a6; line-height:1.35; }
+
   #globalLoading{ margin-top:12px; }
 </style>
 </head>
@@ -231,20 +235,13 @@
   const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
   function linksForSelection(pickedLabels){
-    // Collect year links from each selected stall (first chunk before first comma)
     const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
     const years = uniqueStalls.map(extractYearKey).filter(Boolean);
-
-    // Consider entire label string for robustness (commas, spaces, etc.)
     const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
     const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
-
     const links = [];
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
-
-    // Add Leads link for either Lead OR Stall co-ordinator roles
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
-
     return [...new Set(links)];
   }
 
@@ -265,12 +262,12 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // --- URL filter helpers (NEW) ---
+  // --- URL filter helpers ---
   function readFiltersFromURL() {
     const q = new URLSearchParams(location.search);
     const stall = q.get('stall') || '';
     const time  = q.get('time')  || '';
-    const hide  = q.get('hide')  || ''; // '1' means hide fully booked
+    const hide  = q.get('hide')  || '';
     return { stall, time, hideFilled: hide === '1' };
   }
   function syncURL() {
@@ -291,7 +288,6 @@
   // Gate
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
-
   gateBtn.addEventListener('click', async ()=>{
     const entered = (gateInput.value||'').trim();
     if(!entered){ gateMsg.textContent='Please enter the password'; return; }
@@ -425,21 +421,21 @@
         if(isActive){ current.stall=''; expandAllChips(); }
         else{ current.stall=s; collapseTo(s); }
         renderStallDesc();
-        syncURL();              /* NEW */
+        syncURL();
         loadGroups();
       });
       changeYear.addEventListener('click', ()=>{
         current.stall=''; expandAllChips(); renderStallDesc();
-        syncURL();              /* NEW */
+        syncURL();
         loadGroups();
       });
       timeSelect.addEventListener('change',()=>{
         current.time=timeSelect.value;
-        syncURL();              /* NEW */
+        syncURL();
         loadGroups();
       });
       hideFilled.addEventListener('change', ()=>{
-        syncURL();              /* NEW */
+        syncURL();
         loadGroups();
       });
       listenersBound=true;
@@ -463,7 +459,7 @@
     filtersCard.style.display='block';
     toolbar.style.display='flex';
 
-    // Apply initial hide flag from URL and sync (NEW)
+    // Apply initial hide flag from URL and sync
     const initial = readFiltersFromURL();
     hideFilled.checked = !!initial.hideFilled;
     syncURL();
@@ -523,6 +519,32 @@
     }).join('');
   }
 
+  /* ---------- NEW: booked roster formatter ---------- */
+  function getRoster(g){
+    // don’t show for student roles
+    if (/\bstudent\b/i.test(g.role||'')) return '';
+    // try known field names (strings or objects)
+    const candidates = [g.roster, g.booked_names, g.booked_list, g.signups, g.bookedDetails];
+    let arr = [];
+    for (const c of candidates){
+      if (Array.isArray(c) && c.length){ arr = c; break; }
+    }
+    if (!arr.length) return '';
+
+    const lines = arr.map(item=>{
+      if (typeof item === 'string') return item;
+      const first = item.first_name || item.first || '';
+      const last  = item.last_name  || item.last  || '';
+      const name  = (item.name || `${first} ${last}`).trim();
+      const klass = item.class || item.child_class || item.pupil_class || item.form || '';
+      const label = (item.label || [name, klass].filter(Boolean).join(' ')).trim();
+      return label;
+    }).filter(Boolean);
+
+    return lines.length ? `<div class="roster">${lines.join('<br>')}</div>` : '';
+  }
+  /* -------------------------------------------------- */
+
   // Render
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
@@ -539,10 +561,13 @@
       const btnText = sel?'Selected':'Select';
       const canSelect = (g.remaining||0)>0 || sel;
       const bookedTxt = `<span class="muted" style="margin-right:8px">${g.booked||0} booked</span>`;
+      const roster = getRoster(g); /* NEW */
+
       html += `<div class="slot" data-id="${g.group_id}">
         <div>
           <div><strong>${g.role||''}</strong></div>
           <div class="muted">${g.stall}${(g.time && sec!==3)?` • ${g.time}`:''}</div>
+          ${roster}
         </div>
         <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap">
           ${bookedTxt}
@@ -624,7 +649,6 @@
 
       selection.clear(); render(); confirmBtn.disabled = true;
 
-      // Keep your red/bold success message & wording
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
         <div style="color:#DC143C; font-weight:700; margin-top:6px">Note your slot(s) - update your calendar now:</div>
@@ -660,8 +684,6 @@
   // Start: if key already stored, try it; else show gate
   (async function init(){
     const stored = getKey();
-
-    // NEW: preload filters from URL so boot()/loadMeta() preserve them
     const initial = readFiltersFromURL();
     if (initial.stall) current.stall = initial.stall;
     if (initial.time)  current.time  = initial.time;
