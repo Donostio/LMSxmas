@@ -237,42 +237,62 @@
     return SUB_OPTIONS.filter(s => !s || YEAR_OF_SUB[s]===year);
   }
 
-  /* Matching: keep combined labels only with the right half based on ROLE text */
-  function subMatches(rowSub, role, selected){
-    if (!selected) return true;
-    const sub = String(rowSub||'').trim();
-    if (selected==='Y9 Bakery'){
-      if (sub==='Y9 Bakery') return true;
-      if (sub==='Y9 Bakery & spin the wheel') {
-        // only if the role is a baking thing, not spin
-        return /bake|cake|biscuit/i.test(role||'') && !/spin/i.test(role||'');
-      }
-      return false;
-    }
-    if (selected==='Y9 Spin the Wheel'){
-      if (sub==='Y9 Spin the Wheel') return true;
-      if (sub==='Y9 Bakery & spin the wheel') {
-        return /spin/i.test(role||'');
-      }
-      return false;
-    }
-    if (selected==='Y10 Books'){
-      if (sub==='Y10 Books') return true;
-      if (sub==='Y10 Pre-Loved & Books'){
-        return /book/i.test(role||'');
-      }
-      return false;
-    }
-    if (selected==='Y10 Pre-Loved'){
-      if (sub==='Y10 Pre-Loved') return true;
-      if (sub==='Y10 Pre-Loved & Books'){
-        return /pre[-\s]?loved|uniform|vintage|donat/i.test(role||'') && !/book/i.test(role||'');
-      }
-      return false;
-    }
-    // everyone else exact match
-    return sub === selected;
+// Replace your current subMatches(...) with this version
+function subMatches(rowSub, role, selected){
+  if (!selected) return true;
+
+  const sub = String(rowSub || '').trim();
+  const r   = String(role || '');
+  const isLead = ROLE_LEAD_RE.test(r);
+
+  // --- LEADS: decide solely by ROLE text ---
+  if (isLead) {
+    // Y9 split: Spin vs Bakery
+    if (selected === 'Y9 Spin the Wheel') return /spin/i.test(r);
+    if (selected === 'Y9 Bakery')         return /bake|cake|biscuit/i.test(r) && !/spin/i.test(r);
+
+    // Y10 split: Books vs Pre-Loved
+    if (selected === 'Y10 Books')         return /book/i.test(r);
+    if (selected === 'Y10 Pre-Loved')     return /pre[-\s]?loved/i.test(r) && !/book/i.test(r);
+
+    // All other sub-stalls (not combined) – allow leads through
+    return true;
   }
+
+  // --- NON-LEADS: keep existing sub-stall logic (with combined rows split) ---
+  if (selected==='Y9 Bakery'){
+    if (sub==='Y9 Bakery') return true;
+    if (sub==='Y9 Bakery & spin the wheel') {
+      return /bake|cake|biscuit/i.test(r) && !/spin/i.test(r);
+    }
+    return false;
+  }
+  if (selected==='Y9 Spin the Wheel'){
+    if (sub==='Y9 Spin the Wheel') return true;
+    if (sub==='Y9 Bakery & spin the wheel') {
+      return /spin/i.test(r);
+    }
+    return false;
+  }
+  if (selected==='Y10 Books'){
+    if (sub==='Y10 Books') return true;
+    if (sub==='Y10 Pre-Loved & Books'){
+      return /book/i.test(r);
+    }
+    return false;
+  }
+  if (selected==='Y10 Pre-Loved'){
+    if (sub==='Y10 Pre-Loved') return true;
+    if (sub==='Y10 Pre-Loved & Books'){
+      return /pre[-\s]?loved|uniform|vintage|donat/i.test(r) && !/book/i.test(r);
+    }
+    return false;
+  }
+
+  // All other sub-stalls are direct matches
+  return sub === selected;
+}
+
 
   /* Role regex (unchanged) */
   const ROLE_LEAD_RE  = /\blead\b/i;
