@@ -229,6 +229,7 @@
   }
   // ---------------------------------------------------------------------------
 
+  // ✅ Regex constants (fixed; no stray text after /i)
   const ROLE_LEAD_RE  = /\blead\b/i;
   const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
@@ -331,7 +332,7 @@
     changeYear.style.display = 'none';
   }
   function renderStallDesc(){
-    stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group to see what they're doing.';
+    stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group to see what they\'re doing.';
   }
 
   const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
