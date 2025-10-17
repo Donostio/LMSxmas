@@ -27,7 +27,7 @@
   .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
   h1{ font-size:28px; margin:0 0 6px; }
 
-  /* HERO */
+  /* hero, layout, forms … unchanged from your latest */
   .hero{ position:relative; border-radius:16px; overflow:hidden; border:1px solid #e6ebf1;
     background:#022a31 url("images/BG.png") center/cover no-repeat; min-height:120px; }
   .hero::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.25)); }
@@ -39,7 +39,6 @@
   @media(min-width:900px){ .hero{ min-height:160px; } .hero-text h1{ font-size:32px; } .hero-logo{ height:72px; } }
   @media(max-width:640px){ .hero-content{ flex-direction:column; align-items:flex-start; } .hero-logo{ height:56px; margin-top:6px; } }
 
-  /* Layout & UI */
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
@@ -88,7 +87,7 @@
 </style>
 </head>
 <body>
-<!-- Password gate -->
+<!-- Password gate (unchanged) -->
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -102,7 +101,7 @@
 </div>
 
 <div class="wrap" id="app" style="display:none">
-  <!-- HERO header -->
+  <!-- HERO -->
   <header class="hero">
     <div class="hero-content">
       <div class="hero-text">
@@ -113,7 +112,6 @@
     </div>
   </header>
 
-  <!-- Global loader -->
   <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
   <div id="netErr" class="banner" style="display:none"></div>
 
@@ -144,7 +142,7 @@
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
             <select id="timeSelect"></select>
           </label>
-          <!-- Sub-stall filter -->
+          <!-- NEW: Sub-stall filter -->
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Sub-stall
             <select id="subSelect"></select>
           </label>
@@ -155,6 +153,7 @@
       <div id="slotsLoading" class="loading mega" style="display:none"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
     </div>
 
+    <!-- Right column (unchanged) -->
     <div class="panel">
       <div class="card">
         <strong>My details</strong>
@@ -186,7 +185,6 @@
         <div id="summary"></div>
       </div>
 
-      <!-- Help / feedback box -->
       <div class="card">
         <strong>Need to cancel or get help?</strong>
         <p style="margin:8px 0 0;">
@@ -204,22 +202,15 @@
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  // HARD-CODED CLASS LIST (never blank)
+  /* class list + links unchanged from your latest */
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
-    '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB',
-    'N/A'
+    '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB','N/A'
   ];
+  const YEAR_LINKS = {"Y7":"http://tiny.cc/Xmas7","Y8":"http://tiny.cc/Xmas8","Y9":"http://tiny.cc/Xmas9","Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13","Leads":"http://tiny.cc/LMSleads"};
 
-  // WhatsApp links
-  const YEAR_LINKS = {
-    "Y7":"http://tiny.cc/Xmas7","Y8":"http://tiny.cc/Xmas8","Y9":"http://tiny.cc/Xmas9",
-    "Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13",
-    "Leads":"http://tiny.cc/LMSleads"
-  };
-
-  // Sub-stall options + “&” mapping
+  // --- NEW: Sub-stall options + matching map (handles the '&' inclusion rule) ---
   const SUB_OPTIONS = [
     '','Y7 Grotto','Y8 Pies and hot drinks','Y9 Bakery','Y9 Spin the Wheel',
     'Y10 Books','Y10 Pre-Loved','Y11 Teen Tombola','Y12-13 Bottle Tombola','Y12-13 Uniform','Y12-13 Vintage'
@@ -229,28 +220,22 @@
     'Y9 Spin the Wheel': ['Y9 Spin the Wheel','Y9 Bakery & spin the wheel'],
     'Y10 Books': ['Y10 Books','Y10 Pre-Loved & Books'],
     'Y10 Pre-Loved': ['Y10 Pre-Loved','Y10 Pre-Loved & Books']
+    // others match 1:1 by their exact text
   };
   function subMatches(rowSub, selected){
     if (!selected) return true;
     const list = SUB_MATCH[selected] || [selected];
     return list.includes(String(rowSub||''));
   }
-  function subTail(label){
-    const s = String(label||'').trim();
-    const m = s.match(/^(Y\d{1,2}(?:-\d{1,2}|\/\d{1,2})?)\s+(.*)$/i);
-    return m ? m[2].trim() : s;
-  }
+  // ---------------------------------------------------------------------------
 
-  // Role regexes (hyphen-proof, space-proof)
   const ROLE_LEAD_RE  = /\blead\b/i;
   const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
-  // key storage
   const getKey = ()=> localStorage.getItem('lms_key') || '';
   const setKey = k => localStorage.setItem('lms_key', k);
   const clearKey = ()=> localStorage.removeItem('lms_key');
 
-  // Elements
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
   const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
@@ -262,7 +247,7 @@
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // URL sync (stall/time/sub/hide)
+  // URL sync (extended with ?sub=)
   function readFiltersFromURL() {
     const q = new URLSearchParams(location.search);
     return {
@@ -281,14 +266,13 @@
     history.replaceState(null, '', `${location.pathname}?${q.toString()}${location.hash}`);
   }
 
-  // State
   let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{}, subStalls:[] };
   let stallIndex=new Map(); 
   let current={ stall:'', time:'', sub:'' };
   let groups=[]; const selection=new Map(); let descMap=new Map();
   let booted=false, listenersBound=false;
 
-  // Password gate
+  // gate
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
   gateBtn.addEventListener('click', async ()=>{
@@ -299,7 +283,6 @@
     else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
   });
 
-  // Fetch with key + timeout/backoff
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
@@ -312,7 +295,7 @@
       try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
       if(tries>1){ await new Promise(r=>setTimeout(r, 300+Math.random()*600)); return fetchJSON(url, opts, keyOverride, tries-1); }
-      showNetError(err);
+      showNetError(err, url);
       return { ok:false, error:String(err) };
     }
   }
@@ -325,7 +308,6 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  // Validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -336,7 +318,6 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
-  // UI helpers
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -353,13 +334,11 @@
     stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group stall to see details here.';
   }
 
-  // Classifiers/sections
   const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
 
-  // Aggregate only co-ordinators; keep ROLE suffix distinct and sub-stall distinct
   function aggregateCoordinators(list){
     const keep = [], byKey = new Map();
     const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
@@ -402,7 +381,6 @@
     return ns.length ? Math.min(...ns) : 999999;
   };
 
-  // Loads
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
@@ -413,7 +391,6 @@
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
 
-    // Build chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
 
     if(!listenersBound){
@@ -437,14 +414,13 @@
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===prevTime?'selected':''}>${t}</option>`).join('');
     current.time = prevTime || '';
 
-    // Sub-stall dropdown
+    // Sub-stall dropdown (use fixed options list; it covers your mapping cleanly)
     subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All sub-stalls'}</option>`).join('');
     subSelect.value = prevSub || '';
 
     // Classes
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    // Restore
     if(prevStall){ current.stall = prevStall; collapseTo(prevStall); } else { expandAllChips(); }
     renderStallDesc();
 
@@ -471,16 +447,8 @@
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
 
-    // Sub-stall filter with Lead/Co-ord fallback (match role text tail like “Bottle Tombola”)
-    let list = (data.data||[]).filter(g => {
-      if (!current.sub) return true;
-      if (subMatches(g.sub_stall, current.sub)) return true;
-      const tail = subTail(current.sub);
-      if (!tail) return false;
-      const roleTxt = String(g.role||'');
-      const tailRe  = new RegExp(tail.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
-      return (ROLE_LEAD_RE.test(roleTxt) || ROLE_COORD_RE.test(roleTxt)) && tailRe.test(roleTxt);
-    });
+    // client-side sub-stall filter (handles & mapping)
+    let list=(data.data||[]).filter(g => subMatches(g.sub_stall, current.sub));
 
     const { others, coords } = aggregateCoordinators(list);
     list=[...others, ...coords];
@@ -521,7 +489,6 @@
     }).join('');
   }
 
-  // Show roster (parents) in light grey; hide if “student” in role
   function getRoster(g){
     if (/\bstudent\b/i.test(g.role||'')) return '';
     const candidates = [g.roster, g.booked_names, g.booked_list, g.signups, g.bookedDetails];
@@ -537,7 +504,6 @@
     return lines.length ? `<div class="roster">${lines.join('<br>')}</div>` : '';
   }
 
-  // Render
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -570,7 +536,6 @@
     });
     slotsEl.innerHTML = html;
 
-    // card buttons
     document.querySelectorAll('.slot').forEach(card=>{
       const id=card.getAttribute('data-id');
       const g=groups.find(x=>x.group_id===id);
@@ -594,7 +559,6 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // WhatsApp links
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
@@ -613,7 +577,6 @@
     return [...new Set(links)];
   }
 
-  // Submit
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -660,15 +623,12 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // Boot
   async function boot(){
     if(booted) return; booted = true;
     try{ await loadMeta(); await loadSummary(); await loadGroups(); app.style.display='block'; }
     catch(e){ debugEl.textContent = 'Startup error: ' + e.message; console.error(e); showNetError(e); }
   }
 
-  // Init
-  const current = { stall:'', time:'', sub:'' };
   (async function init(){
     const stored = getKey();
     const initial = readFiltersFromURL();
