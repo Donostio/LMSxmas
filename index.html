@@ -415,7 +415,7 @@
     current.time = prevTime || '';
 
     // Sub-stall dropdown (use fixed options list; it covers your mapping cleanly)
-    subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All sub-stalls'}</option>`).join('');
+    subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All stalls'}</option>`).join('');
     subSelect.value = prevSub || '';
 
     // Classes
