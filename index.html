@@ -356,40 +356,68 @@
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
 
-  // Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
-  function aggregateCoordinators(list){
-    const keep = [], byKey = new Map();
-    const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
-    for (const g of list){
-      if (!isCoord(g)) { keep.push(g); continue; }
-      const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
-      const timeKey  = norm(g.time || '');
-      const stallKey = norm(g.stall || '');
-      const key = `${stallKey}|${timeKey}|${roleKey}`;
-      if (!byKey.has(key)){
-        byKey.set(key, {
-          group_id: `coord|${key}`,
-          stall: g.stall,
-          year_stall: g.stall,
-          role: roleKey,
-          slot: g.slot || '',
-          time: g.time || '',
-          capacity: 0,
-          booked: 0,
-          remaining: 0,
-          all_urns: [],
-          available_urns: []
-        });
-      }
-      const agg = byKey.get(key);
-      agg.capacity  += (g.capacity || 0);
-      agg.booked    += (g.booked   || 0);
-      agg.remaining  = Math.max(0, agg.capacity - agg.booked);
-      if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
-      if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+// Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
+function aggregateCoordinators(list){
+  const keep = [], byKey = new Map();
+
+  const norm = s => String(s || '')
+    .replace(/[–—]/g, '-')   // normalize dashes
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  for (const g of list){
+    // Only aggregate co-ordinators
+    if (!ROLE_COORD_RE.test(g.role || '')) { 
+      keep.push(g); 
+      continue; 
     }
-    return { others: keep, coords: Array.from(byKey.values()) };
+
+    const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
+    const timeKey  = norm(g.time || '');
+    const stallKey = norm(g.stall || '');
+    const key = `${stallKey}|${timeKey}|${roleKey}`;
+
+    if (!byKey.has(key)){
+      byKey.set(key, {
+        group_id: `coord|${key}`,
+        stall: g.stall,
+        year_stall: g.stall,
+        role: roleKey,
+        slot: g.slot || '',
+        time: g.time || '',
+        capacity: 0,
+        booked: 0,
+        remaining: 0,
+        all_urns: [],
+        available_urns: [],
+        // keep the booked names when aggregating
+        roster: [],
+        bookedDetails: []
+      });
+    }
+
+    const agg = byKey.get(key);
+    agg.capacity  += (g.capacity || 0);
+    agg.booked    += (g.booked   || 0);
+    agg.remaining  = Math.max(0, agg.capacity - agg.booked);
+
+    if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+    if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+
+    // NEW: merge booked name lists
+    if (Array.isArray(g.roster))          agg.roster.push(...g.roster);
+    if (Array.isArray(g.bookedDetails))   agg.bookedDetails.push(...g.bookedDetails);
   }
+
+  // De-dupe roster nicely (in case multiple rows had the same name/class)
+  for (const agg of byKey.values()){
+    const seen = new Set();
+    agg.roster = agg.roster.filter(s => { s = String(s||'').trim(); if (!s || seen.has(s)) return false; seen.add(s); return true; });
+  }
+
+  return { others: keep, coords: Array.from(byKey.values()) };
+}
+
 
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
