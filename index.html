@@ -27,7 +27,7 @@
   .card{ background:var(--card); border:1px solid #e6ebf1; border-radius:16px; padding:16px; }
   h1{ font-size:28px; margin:0 0 6px; }
 
-  /* HERO */
+  /* hero, layout, forms … unchanged from your latest */
   .hero{ position:relative; border-radius:16px; overflow:hidden; border:1px solid #e6ebf1;
     background:#022a31 url("images/BG.png") center/cover no-repeat; min-height:120px; }
   .hero::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.25)); }
@@ -39,7 +39,6 @@
   @media(min-width:900px){ .hero{ min-height:160px; } .hero-text h1{ font-size:32px; } .hero-logo{ height:72px; } }
   @media(max-width:640px){ .hero-content{ flex-direction:column; align-items:flex-start; } .hero-logo{ height:56px; margin-top:6px; } }
 
-  /* Layout & UI */
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
@@ -55,8 +54,8 @@
   .chip.active{ background:#d1e9ff; }
   .timeHeader{ margin:12px 0 6px; font-weight:700; color:#334155; }
   .slots{ display:flex; flex-direction:column; gap:12px; min-height:60px; }
-  .toolbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; }
-  .toolbar .right{ display:flex; gap:12px; align-items:center; }
+  .toolbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; }
+  .toolbar .right{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .slot{ display:grid; grid-template-columns: 1fr 300px; gap:12px; padding:12px; border:1px solid #e6ebf1; border-radius:14px; background:var(--card); align-items:center; width:100%; }
   @media(max-width: 640px){ .slot{ grid-template-columns:1fr; } }
   .badge{ background:#f4faf6; border:1px solid #d6eade; border-radius:12px; padding:6px 10px; text-align:center; white-space:nowrap; }
@@ -83,15 +82,12 @@
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   .desc{ white-space:pre-wrap; color:#111; }
   .linkbtn{ background:none; border:none; color:#1877c9; text-decoration:underline; cursor:pointer; padding:0; margin-top:8px; font:inherit; }
-
-  /* NEW: booked names on cards */
   .roster{ margin-top:6px; font-size:12px; color:#9aa0a6; line-height:1.35; }
-
   #globalLoading{ margin-top:12px; }
 </style>
 </head>
 <body>
-<!-- Password gate -->
+<!-- Password gate (unchanged) -->
 <div id="gate" class="gate">
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
@@ -105,7 +101,7 @@
 </div>
 
 <div class="wrap" id="app" style="display:none">
-  <!-- HERO header -->
+  <!-- HERO -->
   <header class="hero">
     <div class="hero-content">
       <div class="hero-text">
@@ -116,7 +112,6 @@
     </div>
   </header>
 
-  <!-- Global loader -->
   <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
   <div id="netErr" class="banner" style="display:none"></div>
 
@@ -147,6 +142,10 @@
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Time
             <select id="timeSelect"></select>
           </label>
+          <!-- NEW: Sub-stall filter -->
+          <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Sub-stall
+            <select id="subSelect"></select>
+          </label>
         </div>
       </div>
 
@@ -154,6 +153,7 @@
       <div id="slotsLoading" class="loading mega" style="display:none"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
     </div>
 
+    <!-- Right column (unchanged) -->
     <div class="panel">
       <div class="card">
         <strong>My details</strong>
@@ -185,7 +185,6 @@
         <div id="summary"></div>
       </div>
 
-      <!-- Help / feedback box -->
       <div class="card">
         <strong>Need to cancel or get help?</strong>
         <p style="margin:8px 0 0;">
@@ -203,89 +202,77 @@
 (function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  // HARD-CODED CLASS LIST so it never appears blank
+  /* class list + links unchanged from your latest */
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
-    '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB',
-    'N/A'
+    '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB','N/A'
   ];
+  const YEAR_LINKS = {"Y7":"http://tiny.cc/Xmas7","Y8":"http://tiny.cc/Xmas8","Y9":"http://tiny.cc/Xmas9","Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13","Leads":"http://tiny.cc/LMSleads"};
 
-  // WhatsApp links by year + Leads
-  const YEAR_LINKS = {
-    "Y7": "http://tiny.cc/Xmas7",
-    "Y8": "http://tiny.cc/Xmas8",
-    "Y9": "http://tiny.cc/Xmas9",
-    "Y10":"http://tiny.cc/Xmas10",
-    "Y11":"http://tiny.cc/Xmas11",
-    "Y12/13":"http://tiny.cc/Xmas12-13",
-    "Leads":"http://tiny.cc/LMSleads"
+  // --- NEW: Sub-stall options + matching map (handles the '&' inclusion rule) ---
+  const SUB_OPTIONS = [
+    '','Y7 Grotto','Y8 Pies and hot drinks','Y9 Bakery','Y9 Spin the Wheel',
+    'Y10 Books','Y10 Pre-Loved','Y11 Teen Tombola','Y12-13 Bottle Tombola','Y12-13 Uniform','Y12-13 Vintage'
+  ];
+  const SUB_MATCH = {
+    'Y9 Bakery': ['Y9 Bakery','Y9 Bakery & spin the wheel'],
+    'Y9 Spin the Wheel': ['Y9 Spin the Wheel','Y9 Bakery & spin the wheel'],
+    'Y10 Books': ['Y10 Books','Y10 Pre-Loved & Books'],
+    'Y10 Pre-Loved': ['Y10 Pre-Loved','Y10 Pre-Loved & Books']
+    // others match 1:1 by their exact text
   };
-
-  function extractYearKey(stallLabel){
-    const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
-    if (!m) return "";
-    let key = m[0].toUpperCase();
-    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
-    return key;
+  function subMatches(rowSub, selected){
+    if (!selected) return true;
+    const list = SUB_MATCH[selected] || [selected];
+    return list.includes(String(rowSub||''));
   }
+  // ---------------------------------------------------------------------------
 
-  // More-bulletproof role checks
   const ROLE_LEAD_RE  = /\blead\b/i;
   const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
 
-  function linksForSelection(pickedLabels){
-    const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
-    const years = uniqueStalls.map(extractYearKey).filter(Boolean);
-    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
-    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
-    const links = [];
-    years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
-    if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
-    return [...new Set(links)];
-  }
-
-  // key storage
   const getKey = ()=> localStorage.getItem('lms_key') || '';
   const setKey = k => localStorage.setItem('lms_key', k);
   const clearKey = ()=> localStorage.removeItem('lms_key');
 
-  // Elements
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
   const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
   const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
-  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled');
+  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled'), subSelect=$('subSelect');
   const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
   const selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
   const firstName=$('firstName'), lastName=$('lastName'), email=$('email'), mobile=$('mobile'), childClass=$('childClass');
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // --- URL filter helpers ---
+  // URL sync (extended with ?sub=)
   function readFiltersFromURL() {
     const q = new URLSearchParams(location.search);
-    const stall = q.get('stall') || '';
-    const time  = q.get('time')  || '';
-    const hide  = q.get('hide')  || '';
-    return { stall, time, hideFilled: hide === '1' };
+    return {
+      stall: q.get('stall') || '',
+      time : q.get('time')  || '',
+      sub  : q.get('sub')   || '',
+      hideFilled: q.get('hide') === '1'
+    };
   }
   function syncURL() {
     const q = new URLSearchParams(location.search);
     if (current.stall) q.set('stall', current.stall); else q.delete('stall');
     if (current.time)  q.set('time',  current.time);  else q.delete('time');
+    if (current.sub)   q.set('sub',   current.sub);   else q.delete('sub');
     if (hideFilled.checked) q.set('hide','1'); else q.delete('hide');
-    const newUrl = `${location.pathname}?${q.toString()}${location.hash}`;
-    history.replaceState(null, '', newUrl);
+    history.replaceState(null, '', `${location.pathname}?${q.toString()}${location.hash}`);
   }
 
-  // State
-  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
-  let stallIndex=new Map(); let current={ stall:'', time:'' };
+  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{}, subStalls:[] };
+  let stallIndex=new Map(); 
+  let current={ stall:'', time:'', sub:'' };
   let groups=[]; const selection=new Map(); let descMap=new Map();
   let booted=false, listenersBound=false;
 
-  // Gate
+  // gate
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
   gateBtn.addEventListener('click', async ()=>{
@@ -296,7 +283,6 @@
     else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
   });
 
-  // Fetch with key + timeout/backoff
   function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
@@ -313,7 +299,7 @@
       return { ok:false, error:String(err) };
     }
   }
-  function showNetError(err, url){
+  function showNetError(err){
     netErr.style.display='block';
     const ping = (API_BASE+'?action=ping&key='+encodeURIComponent(getKey()));
     netErr.innerHTML = `Network error talking to the rota. Please check your Apps Script deployment.<br>
@@ -322,7 +308,6 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  // Validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -333,7 +318,6 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
-  // UI helpers
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -350,74 +334,46 @@
     stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group stall to see details here.';
   }
 
-  // Classifiers
   const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
 
-// Aggregate only co-ordinators; keep different ROLE suffixes as separate cards
-function aggregateCoordinators(list){
-  const keep = [], byKey = new Map();
-
-  const norm = s => String(s || '')
-    .replace(/[–—]/g, '-')   // normalize dashes
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  for (const g of list){
-    // Only aggregate co-ordinators
-    if (!ROLE_COORD_RE.test(g.role || '')) { 
-      keep.push(g); 
-      continue; 
+  function aggregateCoordinators(list){
+    const keep = [], byKey = new Map();
+    const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+    for (const g of list){
+      if (!ROLE_COORD_RE.test(g.role || '')) { keep.push(g); continue; }
+      const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
+      const timeKey  = norm(g.time || '');
+      const stallKey = norm(g.stall || '');
+      const subKey   = norm(g.sub_stall || '');
+      const key = `${stallKey}|${timeKey}|${roleKey}|${subKey}`;
+      if (!byKey.has(key)){
+        byKey.set(key, {
+          group_id: `coord|${key}`,
+          stall: g.stall, year_stall: g.stall,
+          role: roleKey, time: g.time || '', sub_stall: g.sub_stall || '',
+          capacity: 0, booked: 0, remaining: 0,
+          all_urns: [], available_urns: [],
+          roster: [], bookedDetails: []
+        });
+      }
+      const agg = byKey.get(key);
+      agg.capacity += (g.capacity || 0);
+      agg.booked   += (g.booked   || 0);
+      agg.remaining  = Math.max(0, agg.capacity - agg.booked);
+      if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+      if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+      if (Array.isArray(g.roster))         agg.roster.push(...g.roster);
+      if (Array.isArray(g.bookedDetails))  agg.bookedDetails.push(...g.bookedDetails);
     }
-
-    const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
-    const timeKey  = norm(g.time || '');
-    const stallKey = norm(g.stall || '');
-    const key = `${stallKey}|${timeKey}|${roleKey}`;
-
-    if (!byKey.has(key)){
-      byKey.set(key, {
-        group_id: `coord|${key}`,
-        stall: g.stall,
-        year_stall: g.stall,
-        role: roleKey,
-        slot: g.slot || '',
-        time: g.time || '',
-        capacity: 0,
-        booked: 0,
-        remaining: 0,
-        all_urns: [],
-        available_urns: [],
-        // keep the booked names when aggregating
-        roster: [],
-        bookedDetails: []
-      });
+    for (const agg of byKey.values()){
+      const seen = new Set();
+      agg.roster = agg.roster.filter(s => { s = String(s||'').trim(); if (!s || seen.has(s)) return false; seen.add(s); return true; });
     }
-
-    const agg = byKey.get(key);
-    agg.capacity  += (g.capacity || 0);
-    agg.booked    += (g.booked   || 0);
-    agg.remaining  = Math.max(0, agg.capacity - agg.booked);
-
-    if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
-    if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
-
-    // NEW: merge booked name lists
-    if (Array.isArray(g.roster))          agg.roster.push(...g.roster);
-    if (Array.isArray(g.bookedDetails))   agg.bookedDetails.push(...g.bookedDetails);
+    return { others: keep, coords: Array.from(byKey.values()) };
   }
-
-  // De-dupe roster nicely (in case multiple rows had the same name/class)
-  for (const agg of byKey.values()){
-    const seen = new Set();
-    agg.roster = agg.roster.filter(s => { s = String(s||'').trim(); if (!s || seen.has(s)) return false; seen.add(s); return true; });
-  }
-
-  return { others: keep, coords: Array.from(byKey.values()) };
-}
-
 
   const minUrn = g => {
     const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
@@ -425,20 +381,16 @@ function aggregateCoordinators(list){
     return ns.length ? Math.min(...ns) : 999999;
   };
 
-  // Loads
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
     meta=data;
 
-    // Preserve existing selection/time
-    const prevStall = current.stall;
-    const prevTime  = current.time;
+    const prevStall = current.stall, prevTime = current.time, prevSub = current.sub;
 
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
 
-    // Build chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
 
     if(!listenersBound){
@@ -448,48 +400,36 @@ function aggregateCoordinators(list){
         const isActive = chip.classList.contains('active');
         if(isActive){ current.stall=''; expandAllChips(); }
         else{ current.stall=s; collapseTo(s); }
-        renderStallDesc();
-        syncURL();
-        loadGroups();
+        renderStallDesc(); syncURL(); loadGroups();
       });
-      changeYear.addEventListener('click', ()=>{
-        current.stall=''; expandAllChips(); renderStallDesc();
-        syncURL();
-        loadGroups();
-      });
-      timeSelect.addEventListener('change',()=>{
-        current.time=timeSelect.value;
-        syncURL();
-        loadGroups();
-      });
-      hideFilled.addEventListener('change', ()=>{
-        syncURL();
-        loadGroups();
-      });
+      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); renderStallDesc(); syncURL(); loadGroups(); });
+      timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; syncURL(); loadGroups(); });
+      hideFilled.addEventListener('change', ()=>{ syncURL(); loadGroups(); });
+      subSelect.addEventListener('change', ()=>{ current.sub=subSelect.value; syncURL(); loadGroups(); });
       listenersBound=true;
     }
 
-    // Populate time select
-    const selectedTime = prevTime || '';
+    // Time dropdown
     const times=(meta.times||[]).slice().sort((a,b)=>a.localeCompare(b));
-    const timeHtml = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===selectedTime?'selected':''}>${t}</option>`).join('');
-    timeSelect.innerHTML = timeHtml;
-    current.time = selectedTime;
+    timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===prevTime?'selected':''}>${t}</option>`).join('');
+    current.time = prevTime || '';
 
-    // Hard-coded classes (never blank)
+    // Sub-stall dropdown (use fixed options list; it covers your mapping cleanly)
+    subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All sub-stalls'}</option>`).join('');
+    subSelect.value = prevSub || '';
+
+    // Classes
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    // Restore stall chip state
-    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); }
-    else{ expandAllChips(); }
+    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); } else { expandAllChips(); }
     renderStallDesc();
 
     filtersCard.style.display='block';
     toolbar.style.display='flex';
 
-    // Apply initial hide flag from URL and sync
     const initial = readFiltersFromURL();
     hideFilled.checked = !!initial.hideFilled;
+    if (initial.sub) { current.sub = initial.sub; subSelect.value = initial.sub; }
     syncURL();
   }
 
@@ -507,7 +447,9 @@ function aggregateCoordinators(list){
     const data=await fetchJSON(`${API_BASE}?${p.toString()}`);
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
 
-    let list=(data.data||[]).slice();
+    // client-side sub-stall filter (handles & mapping)
+    let list=(data.data||[]).filter(g => subMatches(g.sub_stall, current.sub));
+
     const { others, coords } = aggregateCoordinators(list);
     list=[...others, ...coords];
 
@@ -547,33 +489,21 @@ function aggregateCoordinators(list){
     }).join('');
   }
 
-  /* ---------- NEW: booked roster formatter ---------- */
   function getRoster(g){
-    // don’t show for student roles
     if (/\bstudent\b/i.test(g.role||'')) return '';
-    // try known field names (strings or objects)
     const candidates = [g.roster, g.booked_names, g.booked_list, g.signups, g.bookedDetails];
     let arr = [];
-    for (const c of candidates){
-      if (Array.isArray(c) && c.length){ arr = c; break; }
-    }
+    for (const c of candidates){ if (Array.isArray(c) && c.length){ arr = c; break; } }
     if (!arr.length) return '';
-
     const lines = arr.map(item=>{
       if (typeof item === 'string') return item;
-      const first = item.first_name || item.first || '';
-      const last  = item.last_name  || item.last  || '';
-      const name  = (item.name || `${first} ${last}`).trim();
+      const name  = (item.name || `${item.first_name||item.first||''} ${item.last_name||item.last||''}`).trim();
       const klass = item.class || item.child_class || item.pupil_class || item.form || '';
-      const label = (item.label || [name, klass].filter(Boolean).join(' ')).trim();
-      return label;
+      return [name, klass].filter(Boolean).join(' ');
     }).filter(Boolean);
-
     return lines.length ? `<div class="roster">${lines.join('<br>')}</div>` : '';
   }
-  /* -------------------------------------------------- */
 
-  // Render
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -589,7 +519,7 @@ function aggregateCoordinators(list){
       const btnText = sel?'Selected':'Select';
       const canSelect = (g.remaining||0)>0 || sel;
       const bookedTxt = `<span class="muted" style="margin-right:8px">${g.booked||0} booked</span>`;
-      const roster = getRoster(g); /* NEW */
+      const roster = getRoster(g);
 
       html += `<div class="slot" data-id="${g.group_id}">
         <div>
@@ -629,7 +559,24 @@ function aggregateCoordinators(list){
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // Submit
+  function extractYearKey(stallLabel){
+    const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
+    if (!m) return "";
+    let key = m[0].toUpperCase();
+    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
+    return key;
+  }
+  function linksForSelection(pickedLabels){
+    const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
+    const years = uniqueStalls.map(extractYearKey).filter(Boolean);
+    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
+    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
+    const links = [];
+    years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
+    if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
+    return [...new Set(links)];
+  }
+
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -644,13 +591,9 @@ function aggregateCoordinators(list){
     msgEl.style.color='#111'; msgEl.style.fontWeight='700';
 
     const body = new URLSearchParams({
-      first_name:firstName.value.trim(),
-      last_name:lastName.value.trim(),
-      email:email.value.trim(),
-      mobile:mobile.value.trim(),
-      child_class:childClass.value,
-      slot_ids: urns.join(','),
-      key: getKey()
+      first_name:firstName.value.trim(), last_name:lastName.value.trim(),
+      email:email.value.trim(), mobile:mobile.value.trim(),
+      child_class:childClass.value, slot_ids: urns.join(','), key: getKey()
     }).toString();
 
     const res = await fetchJSON(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
@@ -659,62 +602,39 @@ function aggregateCoordinators(list){
       const nice = /Some positions are no longer available/i.test(err)
         ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
         : err || 'There was an error';
-      formBanner.textContent = nice;
-      formBanner.style.display='block';
-
+      formBanner.textContent = nice; formBanner.style.display='block';
       const m = err.match(/no longer available:\s*(.+)$/i);
-      if(m){
-        const conflicts = m[1].split(',').map(s=>s.trim());
-        for(const [id, val] of selection){ if(conflicts.includes(val.urn)) selection.delete(id); }
-        render();
-      }
+      if(m){ const conflicts = m[1].split(',').map(s=>s.trim()); for(const [id, val] of selection){ if(conflicts.includes(val.urn)) selection.delete(id); } render(); }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
       const links = linksForSelection(pickedLabels);
-      const linksHtml = links.length
-        ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
-        : '—';
-
+      const linksHtml = links.length ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ') : '—';
       selection.clear(); render(); confirmBtn.disabled = true;
-
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
         <div style="color:#DC143C; font-weight:700; margin-top:6px">Note your slot(s) - update your calendar now:</div>
         <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
         <div style="color:#DC143C; font-weight:900; margin-top:6px">
           Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please use this link(s) to do so now: ${linksHtml}
-        </div>
-      `;
-
+        </div>`;
       await Promise.all([loadGroups(), loadSummary()]);
     }
-
     confirmBtn.textContent=original; confirmBtn.classList.remove('wait');
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // Boot flow
   async function boot(){
-    if(booted) return;
-    booted = true;
-    try{
-      await loadMeta();
-      await loadSummary();
-      await loadGroups();
-      app.style.display='block';
-    }catch(e){
-      debugEl.textContent = 'Startup error: ' + e.message;
-      console.error(e);
-      showNetError(e, API_BASE);
-    }
+    if(booted) return; booted = true;
+    try{ await loadMeta(); await loadSummary(); await loadGroups(); app.style.display='block'; }
+    catch(e){ debugEl.textContent = 'Startup error: ' + e.message; console.error(e); showNetError(e); }
   }
 
-  // Start: if key already stored, try it; else show gate
   (async function init(){
     const stored = getKey();
     const initial = readFiltersFromURL();
     if (initial.stall) current.stall = initial.stall;
     if (initial.time)  current.time  = initial.time;
+    if (initial.sub)   current.sub   = initial.sub;
 
     if(stored){
       const ping = await fetchJSON(API_BASE+'?action=ping');
