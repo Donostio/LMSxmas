@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>LMS Christmas Fair — Volunteer sign-up</title>
+<title>LMS Christmas Fair 29th Nov — Volunteer sign-up</title>
 
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-09GP3CBRR8"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag(){ dataLayer.push(arguments); }
+  function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'G-09GP3CBRR8');
 </script>
@@ -39,7 +39,6 @@
   @media(min-width:900px){ .hero{ min-height:160px; } .hero-text h1{ font-size:32px; } .hero-logo{ height:72px; } }
   @media(max-width:640px){ .hero-content{ flex-direction:column; align-items:flex-start; } .hero-logo{ height:56px; margin-top:6px; } }
 
-  /* Layout & UI */
   .muted{ color:var(--muted); }
   .row{ display:grid; grid-template-columns: 1fr; gap:16px; }
   @media(min-width:1100px){ .row{ grid-template-columns: 2fr 1fr; } }
@@ -83,8 +82,8 @@
   .gate .box{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; padding:20px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.06); }
   .desc{ white-space:pre-wrap; color:#111; }
   .linkbtn{ background:none; border:none; color:#1877c9; text-decoration:underline; cursor:pointer; padding:0; margin-top:8px; font:inherit; }
+  .roster{ margin-top:6px; font-size:12px; color:#9aa0a6; line-height:1.35; }
   #globalLoading{ margin-top:12px; }
-  .names{ color:#94a3b8; font-size:12px; margin-top:6px; line-height:1.35; }
 </style>
 </head>
 <body>
@@ -93,7 +92,7 @@
   <div class="box">
     <h3 style="margin:0 0 8px">Enter password</h3>
     <div class="muted" style="margin-bottom:10px">
-      This page is for LMS PTA volunteers. If you don't have the password please ask your Form Whatsapp.
+      This page is for LMS PTA volunteers. If you don't have the password please ask your Form Whatsapp. 
     </div>
     <input id="gateInput" type="password" placeholder="Password" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6ebf1; background:#f5f7fa" />
     <button id="gateBtn" class="btn" style="margin-top:10px; width:100%">Continue</button>
@@ -102,7 +101,7 @@
 </div>
 
 <div class="wrap" id="app" style="display:none">
-  <!-- HERO header -->
+  <!-- HERO -->
   <header class="hero">
     <div class="hero-content">
       <div class="hero-text">
@@ -113,7 +112,6 @@
     </div>
   </header>
 
-  <!-- Global loader -->
   <div id="globalLoading" class="loading mega"><span class="santa">🎅 Ho Ho Ho</span>-ld on while volunteer opportunities load!</div>
   <div id="netErr" class="banner" style="display:none"></div>
 
@@ -126,8 +124,8 @@
         <button id="changeYear" class="linkbtn" style="display:none">Change year group</button>
       </div>
       <div class="right">
-        <div style="font-weight:600; margin-bottom:6px">About this stall</div>
-        <div id="stallDesc" class="desc">Choose a year-group stall to see details here.</div>
+        <div style="font-weight:600; margin-bottom:6px">Your year-group</div>
+        <div id="stallDesc" class="desc">Choose a year-group to see your stalls.</div>
       </div>
     </div>
   </div>
@@ -145,7 +143,7 @@
             <select id="timeSelect"></select>
           </label>
           <label style="flex-direction:row; gap:8px; align-items:center; font-weight:600">Stall
-            <select id="substallSelect"></select>
+            <select id="subSelect"></select>
           </label>
         </div>
       </div>
@@ -185,7 +183,6 @@
         <div id="summary"></div>
       </div>
 
-      <!-- Help / feedback box -->
       <div class="card">
         <strong>Need to cancel or get help?</strong>
         <p style="margin:8px 0 0;">
@@ -200,69 +197,166 @@
 </div>
 
 <script>
-(() => {
-  "use strict";
-
-  // ===== CONFIG =====
+(function(){
   const API_BASE = 'https://script.google.com/macros/s/AKfycbyeAsjInlE1B-z7SGXvU2fU7cO_lI7yEqFDDRKN47madhNjLFRVSP8siOiNleOO4umwCg/exec';
 
-  // Hard-coded classes (prevents blank dropdown if meta hiccups)
+  /* Class list + WhatsApp links */
   const CLASS_LIST = [
     '7KM','7KL','7BU','7AB','8RE','8PH','8NAA','8KH','9VM','9NA','9AW','9ATB',
     '10OM','10KF','10JT','10GR','10AN','11KAH','11IDC','11EW','11DU','11CJ',
     '12/13SSS','12/13RC','12/13NB','12/13LVE','12/13LN','12/13JD','12/13ID','12/13EDW','12/13AR','12/13ALB','N/A'
   ];
+  const YEAR_LINKS = {"Y7":"http://tiny.cc/Xmas7","Y8":"http://tiny.cc/Xmas8","Y9":"http://tiny.cc/Xmas9","Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13","Leads":"http://tiny.cc/LMSleads"};
 
-  // WhatsApp links by year + Leads
-  const YEAR_LINKS = {
-    "Y7": "http://tiny.cc/Xmas7",
-    "Y8": "http://tiny.cc/Xmas8",
-    "Y9": "http://tiny.cc/Xmas9",
-    "Y10":"http://tiny.cc/Xmas10",
-    "Y11":"http://tiny.cc/Xmas11",
-    "Y12/13":"http://tiny.cc/Xmas12-13",
-    "Leads":"http://tiny.cc/LMSleads"
+  /* Sub-stall options + mapping to Year-Stall (chip) text */
+  const SUB_OPTIONS = [
+    '','Y7 Grotto','Y8 Pies and hot drinks','Y9 Bakery','Y9 Spin the Wheel',
+    'Y10 Books','Y10 Pre-Loved','Y11 Teen Tombola',
+    'Y12-13 Bottle Tombola','Y12-13 Uniform','Y12-13 Vintage'
+  ];
+  const SUB_TO_YEARSTALL = {
+    'Y7 Grotto': "Y7: Santa's Grotto",
+    'Y8 Pies and hot drinks': "Y8 Mulled wine, Mince Pies & Hot Drinks",
+    'Y9 Bakery': "Y9: Bakery and Spin the Wheel",
+    'Y9 Spin the Wheel': "Y9: Bakery and Spin the Wheel",
+    'Y10 Books': "Y10: Books & Pre Loved Stall",
+    'Y10 Pre-Loved': "Y10: Books & Pre Loved Stall",
+    'Y11 Teen Tombola': "Y11: Teen Tombola",
+    'Y12-13 Bottle Tombola': "Y12/13 Vintage, Uniform & Bottle Tombola",
+    'Y12-13 Uniform': "Y12/13 Vintage, Uniform & Bottle Tombola",
+    'Y12-13 Vintage': "Y12/13 Vintage, Uniform & Bottle Tombola",
+  };
+  const YEAR_OF_SUB = {
+    'Y7 Grotto':'Y7','Y8 Pies and hot drinks':'Y8',
+    'Y9 Bakery':'Y9','Y9 Spin the Wheel':'Y9',
+    'Y10 Books':'Y10','Y10 Pre-Loved':'Y10',
+    'Y11 Teen Tombola':'Y11',
+    'Y12-13 Bottle Tombola':'Y12/13','Y12-13 Uniform':'Y12/13','Y12-13 Vintage':'Y12/13'
+  };
+  function optionsForYear(year){
+    return SUB_OPTIONS.filter(s => !s || YEAR_OF_SUB[s]===year);
+  }
+
+  /* Role classifiers */
+  const ROLE_LEAD_RE  = /\blead\b/i;
+  const ROLE_COORD_RE = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i;
+
+  /* Lead-keywords by sub-stall (match only the Role column) */
+  const LEAD_WORDS = {
+    'Y7 Grotto':               [/grotto/i],
+    'Y8 Pies and hot drinks':  [/pie|mince|hot\s*drinks?|mulled|coffee|tea/i],
+    'Y9 Bakery':               [/bake|cake|biscuit/i],
+    'Y9 Spin the Wheel':       [/spin/i],
+    'Y10 Books':               [/book/i],
+    'Y10 Pre-Loved':           [/pre[-\s]?loved/i],
+    'Y11 Teen Tombola':        [/teen\s*tombola|tombola/i],
+    'Y12-13 Bottle Tombola':   [/bottle\s*tombola/i],
+    'Y12-13 Uniform':          [/uniform/i],
+    'Y12-13 Vintage':          [/vintage/i],
   };
 
-  // ===== DOM =====
+  /* Sub-stall filter:
+     - For LEAD roles: decide *only by Role* using LEAD_WORDS (ignores Year-Stall text).
+     - For others: keep your combined-row logic so Bakery & Spin or Pre-Loved & Books split correctly. */
+  function subMatches(rowSub, role, selected){
+    if (!selected) return true;
+
+    const sub = String(rowSub || '').trim();
+    const r   = String(role || '');
+    const isLead = ROLE_LEAD_RE.test(r);
+
+    if (isLead) {
+      const tests = LEAD_WORDS[selected];
+      if (!tests) return true; // tolerate unknown subs
+      return tests.some(rx => rx.test(r));
+    }
+
+    // --- NON-LEADS (unchanged behaviour with combo rows) ---
+    if (selected==='Y9 Bakery'){
+      if (sub==='Y9 Bakery') return true;
+      if (sub==='Y9 Bakery & spin the wheel') return /bake|cake|biscuit/i.test(r) && !/spin/i.test(r);
+      return false;
+    }
+    if (selected==='Y9 Spin the Wheel'){
+      if (sub==='Y9 Spin the Wheel') return true;
+      if (sub==='Y9 Bakery & spin the wheel') return /spin/i.test(r);
+      return false;
+    }
+    if (selected==='Y10 Books'){
+      if (sub==='Y10 Books') return true;
+      if (sub==='Y10 Pre-Loved & Books') return /book/i.test(r);
+      return false;
+    }
+    if (selected==='Y10 Pre-Loved'){
+      if (sub==='Y10 Pre-Loved') return true;
+      if (sub==='Y10 Pre-Loved & Books') return /pre[-\s]?loved/i.test(r) && !/book/i.test(r);
+      return false;
+    }
+
+    return sub === selected;
+  }
+
+  /* key storage + elements */
+  const getKey = ()=> localStorage.getItem('lms_key') || '';
+  const setKey = k => localStorage.setItem('lms_key', k);
+  const clearKey = ()=> localStorage.removeItem('lms_key');
+
   const $ = id => document.getElementById(id);
   const gate=$('gate'), gateInput=$('gateInput'), gateBtn=$('gateBtn'), gateMsg=$('gateMsg');
   const app=$('app'), globalLoading=$('globalLoading'), filtersCard=$('filtersCard'), toolbar=$('toolbar'), netErr=$('netErr');
   const stallChips=$('stallChips'), changeYear=$('changeYear'), stallDesc=$('stallDesc');
-  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled'), substallSelect=$('substallSelect');
+  const timeSelect=$('timeSelect'), hideFilled=$('hideFilled'), subSelect=$('subSelect');
   const slotsEl=$('slots'), slotsLoading=$('slotsLoading'), needFill=$('needFill');
   const selectedEl=$('selected'), confirmBtn=$('confirm'), msgEl=$('msg');
   const firstName=$('firstName'), lastName=$('lastName'), email=$('email'), mobile=$('mobile'), childClass=$('childClass');
   const emailErr=$('emailErr'), mobileErr=$('mobileErr'), classErr=$('classErr'), formBanner=$('formBanner');
   const summaryEl=$('summary'), debugEl=$('debug');
 
-  // ===== STATE =====
-  let meta={ stalls:[], times:[], classes:[], substalls:[], descriptionsByStall:{} };
-  let stallIndex=new Map(); let current={ stall:'', time:'', substall:'' };
+  /* URL sync */
+  function readFiltersFromURL() {
+    const q = new URLSearchParams(location.search);
+    return { stall:q.get('stall')||'', time:q.get('time')||'', sub:q.get('sub')||'', hideFilled:q.get('hide')==='1' };
+  }
+  function syncURL() {
+    const q = new URLSearchParams(location.search);
+    if (current.stall) q.set('stall', current.stall); else q.delete('stall');
+    if (current.time)  q.set('time',  current.time);  else q.delete('time');
+    if (current.sub)   q.set('sub',   current.sub);   else q.delete('sub');
+    if (hideFilled.checked) q.set('hide','1'); else q.delete('hide');
+    history.replaceState(null, '', `${location.pathname}?${q.toString()}${location.hash}`);
+  }
+
+  let meta={ stalls:[], times:[], classes:[], descriptionsByStall:{} };
+  let stallIndex=new Map();
+  let current={ stall:'', time:'', sub:'' };
   let groups=[]; const selection=new Map(); let descMap=new Map();
   let booted=false, listenersBound=false;
 
-  // ===== UTILS =====
-  const getKey = ()=> localStorage.getItem('lms_key') || '';
-  const setKey = k => localStorage.setItem('lms_key', k);
-  const clearKey = ()=> localStorage.removeItem('lms_key');
-  const sleep = ms => new Promise(r=>setTimeout(r,ms));
-  const timeout = ms => new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms));
+  /* Gate */
+  function openGate(){ gate.style.display='flex'; app.style.display='none'; }
+  function openApp(){ gate.style.display='none'; app.style.display='block'; }
+  gateBtn.addEventListener('click', async ()=>{
+    const entered = (gateInput.value||'').trim();
+    if(!entered){ gateMsg.textContent='Please enter the password'; return; }
+    const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
+    if(ping && ping.ok){ setKey(entered); openApp(); if(!booted) boot(); }
+    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
+  });
 
+  /* fetch helpers */
+  function timeout(ms){ return new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms)); }
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
     const joiner = url.includes('?') ? '&' : '?';
     const withKey = url + joiner + 'key=' + encodeURIComponent(key) + '&cb=' + Math.random().toString(36).slice(2);
-    const timeouts=[12000,22000,35000];
-    const to=timeouts[Math.max(0, 3-tries)];
+    const tIndex = 3 - tries; const timeouts=[12000,22000,35000]; const to=timeouts[Math.min(tIndex, timeouts.length-1)];
     try{
       const res = await Promise.race([ fetch(withKey, {mode:'cors', redirect:'follow', keepalive:true, ...opts}), timeout(to) ]);
       const txt = await res.text();
       try { return JSON.parse(txt); } catch { return { ok:false, error:`HTTP ${res.status} ${res.statusText}: ${txt.slice(0,200)}` }; }
     }catch(err){
-      if(tries>1){ await sleep(300+Math.random()*600); return fetchJSON(url, opts, keyOverride, tries-1); }
-      showNetError(err, url);
-      return { ok:false, error:String(err) };
+      if(tries>1){ await new Promise(r=>setTimeout(r, 300+Math.random()*600)); return fetchJSON(url, opts, keyOverride, tries-1); }
+      showNetError(err); return { ok:false, error:String(err) };
     }
   }
   function showNetError(err){
@@ -274,10 +368,7 @@
       <span class="error">${String(err)}</span>`;
   }
 
-  function openGate(){ gate.style.display='flex'; app.style.display='none'; }
-  function openApp(){ gate.style.display='none'; app.style.display='block'; }
-
-  // ===== VALIDATION =====
+  /* form validation */
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -288,7 +379,7 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
-  // ===== YEAR + DESC UI =====
+  /* Chips collapse/expand */
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -296,59 +387,72 @@
       c.classList.toggle('active', match);
     });
     changeYear.style.display = 'inline';
-    // set description immediately
-    stallDesc.textContent = descMap.get(stallLabel) || 'No description yet.';
   }
   function expandAllChips(){
     stallChips.querySelectorAll('.chip').forEach(c=>{ c.style.display='inline-block'; c.classList.remove('active'); });
     changeYear.style.display = 'none';
-    stallDesc.textContent = 'Choose a year-group stall to see details here.';
+  }
+  function renderStallDesc(){
+    stallDesc.textContent = current.stall ? (descMap.get(current.stall)||'No description yet.') : 'Choose a year-group to see what they\'re doing.';
   }
 
-  // ===== CLASSIFIERS =====
-  const ROLE_STUDENT_RE = new RegExp("\\bstudent\\b","i");
-  const ROLE_COORD_RE   = new RegExp("\\b(?:stall\\s*)?(?:co[- ]?ordinator|coordinator)(?:\\s*\\d+)?\\b","i");
-  const ROLE_LEAD_RE    = new RegExp("\\blead\\b","i");
-
-  const isLead = g => g.time==='Stall Lead' || ROLE_LEAD_RE.test(g.role||'');
+  /* Classifiers + coordinator aggregation */
+  const isLead = g => g.time==='Stall Lead' || /\blead\b/i.test(g.role||'');
   const isCoord = g => ROLE_COORD_RE.test(g.role||'');
   const isDonationBake = g => /^bake:\s*/i.test(g.role||'');
   function sectionOf(g){ if (isLead(g)) return 0; if (isCoord(g)) return 1; if (isDonationBake(g)) return 2; return 3; }
-
-  function extractYearKey(stallLabel){
-    const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
-    if (!m) return "";
-    let key = m[0].toUpperCase();
-    if (key === 'Y12' || key === 'Y13') key = 'Y12/13';
-    return key;
+  function aggregateCoordinators(list){
+    const keep = [], byKey = new Map();
+    const norm = s => String(s || '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+    for (const g of list){
+      if (!ROLE_COORD_RE.test(g.role || '')) { keep.push(g); continue; }
+      const roleKey  = norm(g.role || g.slot || 'Stall co-ordinator');
+      const timeKey  = norm(g.time || '');
+      const stallKey = norm(g.stall || '');
+      const subKey   = norm(g.sub_stall || '');
+      const key = `${stallKey}|${timeKey}|${roleKey}|${subKey}`;
+      if (!byKey.has(key)){
+        byKey.set(key, {
+          group_id: `coord|${key}`,
+          stall: g.stall, year_stall: g.stall,
+          role: roleKey, time: g.time || '', sub_stall: g.sub_stall || '',
+          capacity: 0, booked: 0, remaining: 0,
+          all_urns: [], available_urns: [],
+          roster: [], bookedDetails: []
+        });
+      }
+      const agg = byKey.get(key);
+      agg.capacity += (g.capacity || 0);
+      agg.booked   += (g.booked   || 0);
+      agg.remaining  = Math.max(0, agg.capacity - agg.booked);
+      if (Array.isArray(g.available_urns)) agg.available_urns.push(...g.available_urns);
+      if (Array.isArray(g.all_urns))       agg.all_urns.push(...g.all_urns);
+      if (Array.isArray(g.roster))         agg.roster.push(...g.roster);
+      if (Array.isArray(g.bookedDetails))  agg.bookedDetails.push(...g.bookedDetails);
+    }
+    for (const agg of byKey.values()){
+      const seen = new Set();
+      agg.roster = agg.roster.filter(s => { s = String(s||'').trim(); if (!s || seen.has(s)) return false; seen.add(s); return true; });
+    }
+    return { others: keep, coords: Array.from(byKey.values()) };
   }
+  const minUrn = g => {
+    const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
+    const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+    return ns.length ? Math.min(...ns) : 999999;
+  };
 
-  function linksForSelection(pickedLabels){
-    const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
-    const years = uniqueStalls.map(extractYearKey).filter(Boolean);
-    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
-    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
-    const links = [];
-    years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
-    if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
-    return [...new Set(links)];
-  }
-
-  // ===== META LOAD =====
+  /* Loaders */
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
     meta=data;
 
-    // Preserve
-    const prevStall = current.stall;
-    const prevTime  = current.time;
-    const prevSub   = current.substall;
+    const prevStall = current.stall, prevTime = current.time, prevSub = current.sub;
 
     stallIndex = new Map((meta.stalls||[]).map((s,i)=>[s,i]));
     descMap = new Map(Object.entries(meta.descriptionsByStall || {}));
-
-    // Year chips
+    // Build chips
     stallChips.innerHTML = (meta.stalls||[]).map(s=>`<span class="chip" data-stall="${s}">${s}</span>`).join('');
 
     if(!listenersBound){
@@ -356,119 +460,69 @@
         const chip=e.target.closest('.chip'); if(!chip) return;
         const s=chip.dataset.stall;
         const isActive = chip.classList.contains('active');
-        if(isActive){ current.stall=''; expandAllChips(); populateSubstall(''); }
-        else{ current.stall=s; collapseTo(s); populateSubstall(s); }
-        loadGroups();
-      });
-      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); populateSubstall(''); loadGroups(); });
-      timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; loadGroups(); });
-      hideFilled.addEventListener('change', loadGroups);
-      substallSelect.addEventListener('change', ()=>{
-        current.substall = substallSelect.value;
-        // auto-select the year chip & description from sub-stall prefix
-        const y = yearFromSubstall(current.substall);
-        if (y){
-          current.stall = y;
-          collapseTo(y);
+        if(isActive){ current.stall=''; current.sub=''; subSelect.value=''; expandAllChips(); }
+        else{
+          current.stall=s; collapseTo(s);
+          // when a year is chosen, limit sub options to that year
+          const year = (s.match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/)||[''])[0];
+          const opts = optionsForYear(year);
+          subSelect.innerHTML = opts.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+          current.sub=''; // clear sub when changing year
         }
-        loadGroups();
+        renderStallDesc(); syncURL(); loadGroups();
+      });
+      changeYear.addEventListener('click', ()=>{
+        current.stall=''; current.sub=''; subSelect.innerHTML = SUB_OPTIONS.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+        expandAllChips(); renderStallDesc(); syncURL(); loadGroups();
+      });
+      timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; syncURL(); loadGroups(); });
+      hideFilled.addEventListener('change', ()=>{ syncURL(); loadGroups(); });
+      subSelect.addEventListener('change', ()=>{
+        current.sub=subSelect.value;
+        if (current.sub){
+          const stallForYear = SUB_TO_YEARSTALL[current.sub];
+          if (stallForYear){
+            current.stall = stallForYear;
+            collapseTo(stallForYear);
+            // restrict dropdown to that year
+            const year = YEAR_OF_SUB[current.sub];
+            const opts = optionsForYear(year);
+            subSelect.innerHTML = opts.map(o=>`<option value="${o}">${o||'All stalls'}</option>`).join('');
+            subSelect.value = current.sub;
+          }
+        }
+        syncURL(); loadGroups();
       });
       listenersBound=true;
     }
 
-    // Times
+    // Time dropdown
     const times=(meta.times||[]).slice().sort((a,b)=>a.localeCompare(b));
     timeSelect.innerHTML = `<option value="">All times</option>` + times.map(t=>`<option value="${t}" ${t===prevTime?'selected':''}>${t}</option>`).join('');
     current.time = prevTime || '';
 
+    // Sub-stall dropdown (full set initially)
+    subSelect.innerHTML = SUB_OPTIONS.map(opt=>`<option value="${opt}">${opt||'All stalls'}</option>`).join('');
+    subSelect.value = prevSub || '';
+
     // Classes
     childClass.innerHTML = `<option value="">— Select class —</option>` + CLASS_LIST.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-    // Sub-stall dropdown (fixed list + your extras)
-    populateSubstall(prevStall || '');
-    if (prevSub) substallSelect.value = prevSub;
-
-    // Restore stall selection
-    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); }
-    else{ expandAllChips(); }
+    // Restore chip if present
+    if(prevStall){ current.stall = prevStall; collapseTo(prevStall); } else { expandAllChips(); }
+    renderStallDesc();
 
     filtersCard.style.display='block';
     toolbar.style.display='flex';
-  }
 
-  function populateSubstall(yearLabel){
-    // Your required options/order
-    const opts = [
-      '', // All
-      'Y7 Grotto',
-      'Y8 Pies and hot drinks',
-      'Y9 Bakery',
-      'Y9 Spin the Wheel',
-      'Y10 Books',
-      'Y10 Pre-Loved',
-      'Y11 Teen Tombola',
-      'Y12-13 Bottle Tombola',
-      'Y12-13 Uniform',
-      'Y12-13 Vintage',
-      // (Note: combo values are present in the DATA, not as filter options)
-      // 'Y9 Bakery & Spin the wheel',
-      // 'Y10 Pre-Loved & Books'
-    ];
-    const html = opts.map(v=>{
-      const lab = v || 'All stalls';
-      if (yearLabel){
-        const y = yearFromSubstall(v);
-        if (v && y && y !== yearLabel) return '';
-      }
-      return `<option value="${v}">${lab}</option>`;
-    }).join('');
-    substallSelect.innerHTML = html;
-    if (yearLabel) substallSelect.value = '';
-  }
-
-  function yearFromSubstall(sub){
-    if (!sub) return '';
-    const map = {
-      'Y7':'Y7: Santa\'s Grotto',
-      'Y8':'Y8 Mulled wine, Mince Pies & Hot Drinks',
-      'Y9':'Y9: Bakery and Spin the Wheel',
-      'Y10':'Y10: Books & Pre Loved Stall Rota',
-      'Y11':'Y11: Teen Tombola',
-      'Y12-13':'Y12/13 Vintage, Uniform & Bottle Tombola'
-    };
-    if (sub.startsWith('Y7 ')) return map.Y7;
-    if (sub.startsWith('Y8 ')) return map.Y8;
-    if (sub.startsWith('Y9 ')) return map.Y9;
-    if (sub.startsWith('Y10 ')) return map.Y10;
-    if (sub.startsWith('Y11 ')) return map.Y11;
-    if (sub.startsWith('Y12-13 ')) return map['Y12-13'];
-    return '';
-  }
-
-  // ===== SLOTS =====
-  const TIME_ORDER = [
-    'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
-    '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
-  ];
-  const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
-  const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
-  const minUrn = g => {
-    const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
-    const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
-    return ns.length ? Math.min(...ns) : 999999;
-  };
-
-  // Pure Sub-stall matching (single source of truth)
-  function substallMatch(g){
-    if (!current.substall) return true;
-    const sel = current.substall.toLowerCase();
-    const raw = String(g.sub_stall||'').toLowerCase();
-
-    if (!raw) return false;
-
-    // split helper column on "&" to allow combos
-    const parts = raw.split('&').map(x=>x.trim());
-    return parts.some(p => p === sel);
+    const initial = readFiltersFromURL();
+    hideFilled.checked = !!initial.hideFilled;
+    if (initial.sub) {
+      current.sub = initial.sub; subSelect.value = initial.sub;
+      const stallForYear = SUB_TO_YEARSTALL[current.sub];
+      if (stallForYear){ current.stall = stallForYear; collapseTo(stallForYear); }
+    }
+    syncURL();
   }
 
   async function loadGroups(){
@@ -486,15 +540,21 @@
     if(!data.ok){ debugEl.textContent='Slots error: ' + (data.error||'unknown'); groups=[]; render(); slotsLoading.style.display='none'; globalLoading.style.display='none'; return; }
 
     let list=(data.data||[]).slice();
+    // apply sub-stall filter with refined combo + lead-by-role logic
+    if (current.sub) list = list.filter(g => subMatches(g.sub_stall, g.role, current.sub));
 
-    // Use only Sub stall for role filtering (includes leads/coords)
-    list = list.filter(substallMatch);
+    const { others, coords } = aggregateCoordinators(list);
+    list=[...others, ...coords];
 
-    // Hide full if requested
-    if (hideFilled.checked) list = list.filter(g => (g.remaining||0) > 0);
+    const applyHide = g => !hideFilled.checked || (g.remaining||0)>0;
+    const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
+    const TIME_ORDER = [
+      'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
+      '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
+    ];
+    const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
 
-    // Sort
-    list = list.sort((a,b)=>{
+    list = list.filter(applyHide).sort((a,b)=>{
       const sa=sectionOf(a), sb=sectionOf(b);
       if(sa!==sb) return sa-sb;
       if(sa<=2){ const d=sIdx(a.stall)-sIdx(b.stall); if(d!==0) return d; return minUrn(a)-minUrn(b); }
@@ -522,7 +582,23 @@
     }).join('');
   }
 
-  // ===== RENDER =====
+  /* Roster rendering */
+  function getRoster(g){
+    if (/\bstudent\b/i.test(g.role||'')) return '';
+    const candidates = [g.roster, g.booked_names, g.booked_list, g.signups, g.bookedDetails];
+    let arr = [];
+    for (const c of candidates){ if (Array.isArray(c) && c.length){ arr = c; break; } }
+    if (!arr.length) return '';
+    const lines = arr.map(item=>{
+      if (typeof item === 'string') return item;
+      const name  = (item.name || `${item.first_name||item.first||''} ${item.last_name||item.last||''}`).trim();
+      const klass = item.class || item.child_class || item.pupil_class || item.form || '';
+      return [name, klass].filter(Boolean).join(' ');
+    }).filter(Boolean);
+    return lines.length ? `<div class="roster">${lines.join('<br>')}</div>` : '';
+  }
+
+  /* Render */
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -538,19 +614,13 @@
       const btnText = sel?'Selected':'Select';
       const canSelect = (g.remaining||0)>0 || sel;
       const bookedTxt = `<span class="muted" style="margin-right:8px">${g.booked||0} booked</span>`;
-
-      // booked names line (not for student roles)
-      let namesHtml = '';
-      if (g.booked_names && !/student/i.test(g.role||'')) {
-        const safe = (g.booked_names||[]).slice(0,6).map(n => String(n||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s])) );
-        if (safe.length) namesHtml = `<div class="names">${safe.join('<br>')}</div>`;
-      }
+      const roster = getRoster(g);
 
       html += `<div class="slot" data-id="${g.group_id}">
         <div>
           <div><strong>${g.role||''}</strong></div>
           <div class="muted">${g.stall}${(g.time && sec!==3)?` • ${g.time}`:''}</div>
-          ${namesHtml}
+          ${roster}
         </div>
         <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap">
           ${bookedTxt}
@@ -584,7 +654,7 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // ===== SUBMIT =====
+  /* WhatsApp links + submit */
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
@@ -595,18 +665,13 @@
   function linksForSelection(pickedLabels){
     const uniqueStalls = [...new Set(pickedLabels.map(l => l.split(',')[0].trim()))];
     const years = uniqueStalls.map(extractYearKey).filter(Boolean);
-    const hasLead  = pickedLabels.some(l => /\blead\b/i.test(l));
-    const hasCoord = pickedLabels.some(l => /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i.test(l));
+    const hasLead  = pickedLabels.some(l => ROLE_LEAD_RE.test(l));
+    const hasCoord = pickedLabels.some(l => ROLE_COORD_RE.test(l));
     const links = [];
-    const YEAR_LINKS = {
-      "Y7": "http://tiny.cc/Xmas7","Y8": "http://tiny.cc/Xmas8","Y9": "http://tiny.cc/Xmas9",
-      "Y10":"http://tiny.cc/Xmas10","Y11":"http://tiny.cc/Xmas11","Y12/13":"http://tiny.cc/Xmas12-13","Leads":"http://tiny.cc/LMSleads"
-    };
     years.forEach(y => { if (YEAR_LINKS[y]) links.push(YEAR_LINKS[y]); });
     if ((hasLead || hasCoord) && YEAR_LINKS['Leads']) links.push(YEAR_LINKS['Leads']);
     return [...new Set(links)];
   }
-
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -621,13 +686,9 @@
     msgEl.style.color='#111'; msgEl.style.fontWeight='700';
 
     const body = new URLSearchParams({
-      first_name:firstName.value.trim(),
-      last_name:lastName.value.trim(),
-      email:email.value.trim(),
-      mobile:mobile.value.trim(),
-      child_class:childClass.value,
-      slot_ids: urns.join(','),
-      key: getKey()
+      first_name:firstName.value.trim(), last_name:lastName.value.trim(),
+      email:email.value.trim(), mobile:mobile.value.trim(),
+      child_class:childClass.value, slot_ids: urns.join(','), key: getKey()
     }).toString();
 
     const res = await fetchJSON(API_BASE, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
@@ -636,76 +697,48 @@
       const nice = /Some positions are no longer available/i.test(err)
         ? 'Sorry, some positions are unavailable now. Select again or message your class rep to volunteer.'
         : err || 'There was an error';
-      formBanner.textContent = nice;
-      formBanner.style.display='block';
-
+      formBanner.textContent = nice; formBanner.style.display='block';
       const m = err.match(/no longer available:\s*(.+)$/i);
-      if(m){
-        const conflicts = m[1].split(',').map(s=>s.trim());
-        for(const [id, val] of selection){ if(conflicts.includes(val.urn)) selection.delete(id); }
-        render();
-      }
+      if(m){ const conflicts = m[1].split(',').map(s=>s.trim()); for(const [id, val] of selection){ if(conflicts.includes(val.urn)) selection.delete(id); } render(); }
       confirmBtn.disabled = !(validateForm() && selection.size>0);
     }else{
       const links = linksForSelection(pickedLabels);
-      const linksHtml = links.length
-        ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ')
-        : '—';
-
+      const linksHtml = links.length ? links.map(u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`).join(' · ') : '—';
       selection.clear(); render(); confirmBtn.disabled = true;
-
       msgEl.innerHTML = `
         <div style="color:#DC143C; font-weight:700">Thank you for volunteering!</div>
-        <div style="color:#DC143C; font-weight:700; margin-top:6px">Note down your slots - put it in your calendar now:</div>
+        <div style="color:#DC143C; font-weight:700; margin-top:6px">Note your slot(s) - update your calendar now:</div>
         <ul style="color:#DC143C; font-weight:700; margin-top:4px">${pickedLabels.map(l => `<li>${l}</li>`).join('')}</ul>
         <div style="color:#DC143C; font-weight:900; margin-top:6px">
           Don't forget to join your volunteer group(s) on WhatsApp! This is essential. Please use this link(s) to do so now: ${linksHtml}
-        </div>
-      `;
-
+        </div>`;
       await Promise.all([loadGroups(), loadSummary()]);
     }
-
     confirmBtn.textContent=original; confirmBtn.classList.remove('wait');
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // ===== BOOT =====
+  /* Boot */
   async function boot(){
-    if(booted) return;
-    booted = true;
+    if(booted) return; booted = true;
     try{
-      await loadMeta();
-      await loadSummary();
-      await loadGroups();
-      app.style.display='block';
-    }catch(e){
-      debugEl.textContent = 'Startup error: ' + e.message;
-      showNetError(e, API_BASE);
-    }
+      await loadMeta(); await loadSummary(); await loadGroups(); app.style.display='block';
+    }catch(e){ debugEl.textContent = 'Startup error: ' + e.message; console.error(e); showNetError(e); }
   }
-
-  // Gate handlers
-  gateBtn.addEventListener('click', async ()=>{
-    gateMsg.textContent = '';
-    const entered = (gateInput.value||'').trim();
-    if(!entered){ gateMsg.textContent='Please enter the password'; return; }
-    const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
-    if(ping && ping.ok){ setKey(entered); gate.style.display='none'; app.style.display='block'; if(!booted) boot(); }
-    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
-  });
-  gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') gateBtn.click(); });
-
   (async function init(){
     const stored = getKey();
+    const initial = readFiltersFromURL();
+    if (initial.stall) current.stall = initial.stall;
+    if (initial.time)  current.time  = initial.time;
+    if (initial.sub)   current.sub   = initial.sub;
+
     if(stored){
       const ping = await fetchJSON(API_BASE+'?action=ping');
-      if(ping && ping.ok){ gate.style.display='none'; app.style.display='block'; boot(); return; }
+      if(ping && ping.ok){ openApp(); boot(); return; }
       clearKey();
     }
-    gate.style.display='flex';
+    openGate();
   })();
-
 })();
 </script>
 </body>
