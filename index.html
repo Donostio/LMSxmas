@@ -251,6 +251,7 @@
 
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
+    aconstjoiner = url.includes('?') ? '&' : '?'; /* keep existing structure but avoid accidental rename */
     const joiner = url.includes('?') ? '&' : '?';
     const withKey = url + joiner + 'key=' + encodeURIComponent(key) + '&cb=' + Math.random().toString(36).slice(2);
     const timeouts=[12000,22000,35000];
@@ -333,54 +334,68 @@
     return [...new Set(links)];
   }
 
-  // ===== SUB-STALL FILTER (the fix) =====
+  // ===== Sub-stall normaliser + filter =====
+  function normSub(s){
+    return String(s||'')
+      .toLowerCase()
+      .replace(/[–—]/g,'-')
+      .replace(/\s*&\s*/g,' & ')
+      .replace(/\s+/g,' ')
+      .replace(/pre[-\s]?loved/g,'pre-loved')
+      .trim();
+  }
+
+  /* Sub-stall filter (no hiding of Lead or Coordinator anywhere):
+     - Leads: decide ONLY by Role text (not Year-Stall).
+     - Single sub-stall rows: exact match (normalised).
+     - Combo rows: include in BOTH sub-stalls; split by keywords when possible.
+  */
   function subMatches(rowSub, role, selected) {
     if (!selected) return true;
 
-    const r = String(role || '');
-    const sub = String(rowSub || '').trim();
+    const r      = String(role || '');
+    const sub    = normSub(rowSub);
+    const sel    = normSub(selected);
 
-    const isLead  = ROLE_LEAD_RE.test(r);
-    const isCoord = ROLE_COORD_RE.test(r);
+    const isLead  = /\blead\b/i.test(r);
+    // const isCoord = /\b(?:stall\s*)?(?:co[- ]?ordinator|coordinator)(?:\s*\d+)?\b/i.test(r); // not used for hiding now
 
     // Leads: decide by ROLE text only
     if (isLead) {
       const wants = {
-        'Y7 Grotto':               [/grotto/i],
-        'Y8 Pies and hot drinks':  [/mulled|pie|mince|hot\s*drinks?|coffee|tea/i],
-        'Y9 Bakery':               [/bake|cake|biscuit/i],
-        'Y9 Spin the Wheel':       [/spin/i],
-        'Y10 Books':               [/book/i],
-        'Y10 Pre-Loved':           [/pre[-\s]?loved/i],
-        'Y11 Teen Tombola':        [/teen\s*tombola|tombola/i],
-        'Y12-13 Bottle Tombola':   [/bottle\s*tombola/i],
-        'Y12-13 Uniform':          [/uniform/i],
-        'Y12-13 Vintage':          [/vintage/i],
+        'y7 grotto':                 [/grotto/i],
+        'y8 pies and hot drinks':    [/mulled|pie|mince|hot\s*drinks?|coffee|tea/i],
+        'y9 bakery':                 [/bake|cake|biscuit/i],
+        'y9 spin the wheel':         [/spin/i],
+        'y10 books':                 [/book/i],
+        'y10 pre-loved':             [/pre[-\s]?loved/i],
+        'y11 teen tombola':          [/teen\s*tombola|tombola/i],
+        'y12-13 bottle tombola':     [/bottle\s*tombola/i],
+        'y12-13 uniform':            [/uniform/i],
+        'y12-13 vintage':            [/vintage/i],
       };
-      const tests = wants[selected];
+      const tests = wants[sel];
       return tests ? tests.some(rx => rx.test(r)) : true;
     }
-
-    // Hide Lead/Coordinator roles in "Y9 Spin the Wheel"
-    if (selected === 'Y9 Spin the Wheel' && (isLead || isCoord)) return false;
 
     const hasSpin = /spin/i.test(r);
     const hasBake = /bake|cake|biscuit/i.test(r);
     const hasBook = /book/i.test(r);
     const hasPre  = /pre[-\s]?loved/i.test(r);
+
     const isGenericBakerySpin = !hasSpin && !hasBake;
     const isGenericBooksPre   = !hasBook && !hasPre;
 
-    if (sub === selected) return true;
+    if (sub === sel) return true;
 
-    if (sub === 'Y9 Bakery & spin the wheel') {
-      if (selected === 'Y9 Bakery')         return hasBake || isGenericBakerySpin;
-      if (selected === 'Y9 Spin the Wheel') return hasSpin || isGenericBakerySpin;
+    if (sub === 'y9 bakery & spin the wheel') {
+      if (sel === 'y9 bakery')         return hasBake || isGenericBakerySpin;
+      if (sel === 'y9 spin the wheel') return hasSpin || isGenericBakerySpin;
       return false;
     }
-    if (sub === 'Y10 Pre-Loved & Books') {
-      if (selected === 'Y10 Books')      return hasBook || isGenericBooksPre;
-      if (selected === 'Y10 Pre-Loved')  return hasPre  || isGenericBooksPre;
+    if (sub === 'y10 pre-loved & books') {
+      if (sel === 'y10 books')      return hasBook || isGenericBooksPre;
+      if (sel === 'y10 pre-loved')  return hasPre  || isGenericBooksPre;
       return false;
     }
 
@@ -410,9 +425,9 @@
         const isActive = chip.classList.contains('active');
         if(isActive){ current.stall=''; expandAllChips(); populateSubstall(''); }
         else{ current.stall=s; collapseTo(s); populateSubstall(s); }
-        loadGroups();
+        syncUrl(); loadGroups();
       });
-      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); populateSubstall(''); loadGroups(); });
+      changeYear.addEventListener('click', ()=>{ current.stall=''; expandAllChips(); populateSubstall(''); syncUrl(); loadGroups(); });
       timeSelect.addEventListener('change',()=>{ current.time=timeSelect.value; syncUrl(); loadGroups(); });
       hideFilled.addEventListener('change', ()=>{ syncUrl(); loadGroups(); });
       substallSelect.addEventListener('change', ()=>{
@@ -525,7 +540,7 @@
 
     let list=(data.data||[]).slice();
 
-    // Sub-stall filter (only source of truth)
+    // Sub-stall filter
     list = list.filter(g => subMatches(g.sub_stall, g.role, current.substall));
 
     // Hide full if requested
