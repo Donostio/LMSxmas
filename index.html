@@ -162,7 +162,7 @@
       <div class="card">
         <strong>My details</strong>
         <div class="help" style="margin-top:6px; margin-bottom:6px; color:#e03131; font-weight:700; font-size:14px">
-          Student volunteers: name and class but <em>parent/guardian email and mobile only</em>.
+          <strong>Student volunteers: name and class but <em>parent/guardian email and mobile only</em>.</strong>
         </div>
         <div class="grid2" style="margin-top:4px">
           <div><label class="req">First name <input id="firstName" autocomplete="given-name"/></label></div>
@@ -265,6 +265,23 @@
     return norm(s).replace(/\s*&\s*/g,' & ').replace(/pre[-\s]?loved/g,'pre-loved');
   }
 
+  // Robust description lookup: exact, "Any Year: X", case-insensitive fallback
+  function getDescriptionFor(label){
+    if (!label) return '';
+    const exact = descMap.get(label);
+    if (exact) return exact;
+
+    const anyYear = descMap.get(`Any Year: ${label}`) || descMap.get(`Any year: ${label}`);
+    if (anyYear) return anyYear;
+
+    const nl = norm(label);
+    for (const [k, v] of descMap.entries()){
+      if (norm(k) === nl) return v;
+      if (norm(k) === norm(`Any Year: ${label}`)) return v;
+    }
+    return '';
+  }
+
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
     const joiner = url.includes('?') ? '&' : '?';
@@ -312,7 +329,8 @@
       c.classList.toggle('active', match);
     });
     changeYear.style.display = 'inline';
-    stallDesc.textContent = descMap.get(stallLabel) || 'No description yet.';
+    const d = getDescriptionFor(stallLabel);
+    stallDesc.textContent = d || 'No description yet.';
   }
   function expandAllChips(){
     stallChips.querySelectorAll('.chip').forEach(c=>{ c.style.display='inline-block'; c.classList.remove('active'); });
@@ -472,7 +490,8 @@
         } else if (current.subOpt.startsWith('extra::')){
           const stallName = current.subOpt.slice(7);
           expandAllChips(); current.stall='';
-          stallDesc.textContent = descMap.get(stallName) || 'No description yet.';
+          const d = getDescriptionFor(stallName);
+          stallDesc.textContent = d || 'No description yet.';
         }
         syncUrl(); loadGroups();
       });
@@ -709,7 +728,8 @@
       } else if (qsSub.startsWith('extra::')){
         const stallName = qsSub.slice(7);
         expandAllChips(); current.stall='';
-        stallDesc.textContent = descMap.get(stallName) || 'No description yet.';
+        const d = getDescriptionFor(stallName);
+        stallDesc.textContent = d || 'No description yet.';
       }
     }
     if (qsHide === '1') { hideFilled.checked = true; }
@@ -742,16 +762,35 @@
     }
   }
 
-  // Gate handlers
-  gateBtn.addEventListener('click', async ()=>{
+  // Gate handlers (now shows “One moment…” and greys the button)
+  async function tryGate(){
     gateMsg.textContent = '';
     const entered = (gateInput.value||'').trim();
     if(!entered){ gateMsg.textContent='Please enter the password'; return; }
+
+    const original = gateBtn.textContent;
+    gateBtn.textContent = 'One moment…';
+    gateBtn.classList.add('wait');
+    gateBtn.disabled = true;
+
     const ping = await fetchJSON(API_BASE+'?action=ping', {}, entered);
-    if(ping && ping.ok){ setKey(entered); gate.style.display='none'; app.style.display='block'; if(!booted) boot(); }
-    else { gateMsg.textContent = 'Incorrect password'; clearKey(); }
-  });
-  gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') gateBtn.click(); });
+
+    if(ping && ping.ok){
+      setKey(entered);
+      gate.style.display='none';
+      app.style.display='block';
+      if(!booted) boot();
+    } else {
+      gateMsg.textContent = 'Incorrect password';
+      clearKey();
+      gateBtn.textContent = original;
+      gateBtn.classList.remove('wait');
+      gateBtn.disabled = false;
+    }
+  }
+
+  gateBtn.addEventListener('click', tryGate);
+  gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryGate(); });
 
   (async function init(){
     const stored = getKey();
