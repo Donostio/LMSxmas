@@ -265,15 +265,12 @@
     return norm(s).replace(/\s*&\s*/g,' & ').replace(/pre[-\s]?loved/g,'pre-loved');
   }
 
-  // Robust description lookup: exact, "Any Year: X", case-insensitive fallback
   function getDescriptionFor(label){
     if (!label) return '';
     const exact = descMap.get(label);
     if (exact) return exact;
-
     const anyYear = descMap.get(`Any Year: ${label}`) || descMap.get(`Any year: ${label}`);
     if (anyYear) return anyYear;
-
     const nl = norm(label);
     for (const [k, v] of descMap.entries()){
       if (norm(k) === nl) return v;
@@ -282,6 +279,65 @@
     return '';
   }
 
+  // Robust time sorting
+  const TIME_ORDER_DEFAULT = [
+    'Stall Lead',
+    'Baking',
+    'FRIDAY Anytime between 1pm - 6pm',
+    'Friday (Day Before stall Sorting & Set up)',
+    '10.00am -12.00pm',
+    '11:00 - 12:00pm',
+    '11.00am -3:00pm',
+    '12:00pm - 1:00pm',
+    '12.00am - 2.00pm',
+    '1:00pm - 2:00pm',
+    '2:00pm - 3:00pm',
+    '2.00pm - 4.00pm'
+  ];
+
+  // Special ordering when “Put me where you need me!” is selected:
+  // Friday (day before) first, THEN 10–4pm block, THEN normal short slots.
+  const TEN_TO_FOUR_VARIANTS = [
+    '10:00am - 4:00pm','10.00am - 4.00pm','10am - 4pm','10:00 - 16:00','10 - 4','10–4','10 — 4'
+  ];
+
+  function tIndexDefault(t){
+    const i = TIME_ORDER_DEFAULT.indexOf(t||'');
+    return i === -1 ? 999 : i;
+    }
+
+  function isPutMeSelected(){
+    if (current.stall === 'Put me where you need me!') return true;
+    if ((current.subOpt||'').toLowerCase() === 'extra::put me where you need me!'.toLowerCase()) return true;
+    return false;
+  }
+
+  function tIndexForPutMe(t){
+    // Priority buckets:
+    // 0: Friday-anytime style
+    const friday = ['FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)'];
+    if (friday.includes(t)) return 0;
+
+    // 1: 10–4pm long shift (supporting multiple spellings)
+    const tt = (t||'').toLowerCase().replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
+    if (TEN_TO_FOUR_VARIANTS.some(v => tt === v.toLowerCase())) return 1;
+
+    // 2+: fall back to the usual default ordering
+    return 2 + tIndexDefault(t);
+  }
+
+  function tIdx(t){
+    return isPutMeSelected() ? tIndexForPutMe(t) : tIndexDefault(t);
+  }
+
+  const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
+  const minUrn = g => {
+    const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
+    const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+    return ns.length ? Math.min(...ns) : 999999;
+  };
+
+  // Networking
   async function fetchJSON(url, opts={}, keyOverride='', tries=3){
     const key = keyOverride || getKey();
     const joiner = url.includes('?') ? '&' : '?';
@@ -310,7 +366,7 @@
   function openGate(){ gate.style.display='flex'; app.style.display='none'; }
   function openApp(){ gate.style.display='none'; app.style.display='block'; }
 
-  // ===== VALIDATION =====
+  // Validation
   const isValidEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
   const isValidUKMobile=v=>/^07\d{9}$/.test((v||'').replace(/\s+/g,''))||/^\+447\d{9}$/.test((v||'').replace(/\s+/g,''))||/^00447\d{9}$/.test((v||'').replace(/\s+/g,''));
   function setValidity(i, ok, err){ i.classList.toggle('invalid', !ok); if(err) err.classList.toggle('show', !ok); }
@@ -321,7 +377,7 @@
   }
   document.addEventListener('input', ()=>{ confirmBtn.disabled = !(validateForm() && selection.size>0); });
 
-  // ===== YEAR + DESC UI =====
+  // Year/chips/desc
   function collapseTo(stallLabel){
     stallChips.querySelectorAll('.chip').forEach(c=>{
       const match = c.dataset.stall === stallLabel;
@@ -357,7 +413,6 @@
     return '';
   }
 
-  // ===== STALL DROPDOWN =====
   function buildStallOptions(yearLabel){
     const yearSubs = [
       'Y7 Grotto','Y7 Photobooth',
@@ -386,7 +441,6 @@
     substallSelect.innerHTML = options.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
   }
 
-  // ===== SUB-STALL MATCHERS =====
   function subPartsFor(group){
     const raw  = group.sub_stall || '';
     const n    = normSub(raw);
@@ -418,7 +472,6 @@
     return true;
   }
 
-  // ===== LINKS AFTER SUBMIT =====
   function extractYearKey(stallLabel){
     const m = String(stallLabel||'').match(/^Y(?:\d{1,2}(?:\/\d{1,2})?)/i);
     if (!m) return "";
@@ -447,7 +500,6 @@
     return [...new Set(links)];
   }
 
-  // ===== META LOAD =====
   async function loadMeta(){
     const data=await fetchJSON(`${API_BASE}?action=meta`);
     if(!data.ok){ debugEl.textContent='Meta error: ' + (data.error||'unknown'); return; }
@@ -516,19 +568,6 @@
     toolbar.style.display='flex';
   }
 
-  // ===== SLOTS =====
-  const TIME_ORDER = [
-    'Stall Lead','Baking','FRIDAY Anytime between 1pm - 6pm','Friday (Day Before stall Sorting & Set up)',
-    '10.00am -12.00pm','11:00 - 12:00pm','11.00am -3:00pm','12:00pm - 1:00pm','12.00am - 2.00pm','1:00pm - 2:00pm','2:00pm - 3:00pm','2.00pm - 4.00pm'
-  ];
-  const tIdx = t => { const i=TIME_ORDER.indexOf(t||''); return i===-1?999:i; };
-  const sIdx = s => stallIndex.has(s)? stallIndex.get(s): 999;
-  const minUrn = g => {
-    const arr = Array.isArray(g.available_urns)&&g.available_urns.length ? g.available_urns : (g.all_urns||[]);
-    const ns = (arr||[]).map(u=>parseInt(String(u).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
-    return ns.length ? Math.min(...ns) : 999999;
-  };
-
   async function loadGroups(){
     slotsLoading.style.display='block';
     slotsEl.innerHTML='';
@@ -545,10 +584,12 @@
 
     let list=(data.data||[]).slice();
 
+    // sub-stall filter
     list = list.filter(g => matchesStallOption(g, current.subOpt));
 
     if (hideFilled.checked) list = list.filter(g => (g.remaining||0) > 0);
 
+    // Sort: leads first, then time (with our special 10–4pm rule for Put me…)
     list = list.sort((a,b)=>{
       const leadA = /lead/i.test(a.role||'') ? 0 : 1;
       const leadB = /lead/i.test(b.role||'') ? 0 : 1;
@@ -578,7 +619,6 @@
     }).join('');
   }
 
-  // ===== RENDER =====
   function render(){
     const totalRemaining = groups.reduce((acc,g)=>acc+(g.remaining||0),0);
     needFill.textContent = `We need to fill ${totalRemaining} more slots!`;
@@ -640,7 +680,7 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   }
 
-  // ===== SUBMIT =====
+  // Submit
   confirmBtn.addEventListener('click', async ()=>{
     formBanner.style.display='none'; formBanner.textContent='';
     const urns=[...selection.values()].map(v=>v.urn);
@@ -704,10 +744,9 @@
     confirmBtn.disabled = !(validateForm() && selection.size>0);
   });
 
-  // ===== DEEP LINKS =====
+  // Deep links
   function applyQueryParams(){
     const q = new URLSearchParams(location.search);
-
     const qsStall = q.get('stall');
     const qsTime  = q.get('time');
     const qsSub   = q.get('sub');     // "sub::<label>" or "extra::<Year-Stall>"
@@ -748,7 +787,6 @@
     history.replaceState(null,'',newUrl);
   }
 
-  // ===== BOOT =====
   async function boot(){
     if(booted) return;
     booted = true;
@@ -762,7 +800,6 @@
     }
   }
 
-  // Gate handlers (now shows “One moment…” and greys the button)
   async function tryGate(){
     gateMsg.textContent = '';
     const entered = (gateInput.value||'').trim();
